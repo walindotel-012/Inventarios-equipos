@@ -539,6 +539,7 @@ export default function Asignacion() {
       'Restricción': asignacion.restriccionCelular || 'N/A',
       'Plan': asignacion.planCelular || 'N/A',
       'Observaciones': asignacion.observaciones,
+      'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
     }));
 
     const ws = XLSX.utils.json_to_sheet(dataExport);
@@ -552,7 +553,7 @@ export default function Asignacion() {
       { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
       { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-      { wch: 20 }
+      { wch: 20 }, { wch: 40 }
     ];
     ws['!cols'] = columnWidths;
 
