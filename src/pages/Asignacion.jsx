@@ -285,6 +285,16 @@ export default function Asignacion() {
       }
     }
 
+    if (formData.netbiosName) {
+      const netbiosDuplicado = asignaciones.find(a => 
+        a.netbiosName === formData.netbiosName && a.id !== editingId
+      );
+      if (netbiosDuplicado) {
+        showToast(`El NetBios "${formData.netbiosName}" ya está en uso por: ${netbiosDuplicado.nombre}`, 'warning');
+        return;
+      }
+    }
+
     try {
       setLoading(true);
       
