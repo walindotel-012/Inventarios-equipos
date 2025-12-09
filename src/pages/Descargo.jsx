@@ -361,13 +361,11 @@ export default function Descargo() {
   const handlePrint = () => {
     if (!printRef.current) return;
 
-    const printElement = document.createElement('div');
-    printElement.innerHTML = printRef.current.innerHTML;
-    printElement.style.display = 'none';
-    document.body.appendChild(printElement);
-
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
     document.body.appendChild(iframe);
 
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -375,13 +373,11 @@ export default function Descargo() {
       <html>
         <head>
           <title>Descargo de Equipo</title>
-          <link href="https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap');
             @page {
               margin-top: 0in;
               margin-left: 0in;
-              margin-right: -0in;
+              margin-right: 0in;
               margin-bottom: 0;
               size: letter portrait;
             }
@@ -410,15 +406,15 @@ export default function Descargo() {
     `);
     iframeDoc.close();
 
+    // Imprimir inmediatamente
+    iframe.contentWindow.print();
+    
+    // Limpiar después de que se cierre el diálogo de impresión
     setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      
-      setTimeout(() => {
+      try {
         document.body.removeChild(iframe);
-        document.body.removeChild(printElement);
-      }, 500);
-    }, 2000);
+      } catch (e) {}
+    }, 100);
   };
 
   const generateReportPDF = async () => {

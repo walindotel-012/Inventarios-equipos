@@ -181,9 +181,11 @@ export default function HojaEntrega() {
   const handlePrint = () => {
     if (!printRef.current) return;
     
-    // Crear iframe oculto para imprimir
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
+    iframe.style.position = 'fixed';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
     document.body.appendChild(iframe);
     
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -191,9 +193,7 @@ export default function HojaEntrega() {
        <html>
         <head>
           <title>Descargo de Equipo</title>
-          <link href="https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
-            @import url('https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap');
             @page {
               margin-top: 1in;
               margin-left: 1in;
@@ -226,16 +226,15 @@ export default function HojaEntrega() {
     `);
     iframeDoc.close();
     
-    // Esperar a que cargue y luego imprimir
+    // Imprimir inmediatamente
+    iframe.contentWindow.print();
+    
+    // Limpiar después de que se cierre el diálogo de impresión
     setTimeout(() => {
-      iframe.contentWindow.focus();
-      iframe.contentWindow.print();
-      
-      // Limpiar después de imprimir
-      setTimeout(() => {
+      try {
         document.body.removeChild(iframe);
-      }, 500);
-    }, 2000);
+      } catch (e) {}
+    }, 100);
   };
 
   return (
