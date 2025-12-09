@@ -56,12 +56,12 @@ export default function HojaEntrega() {
       // Crear un contenedor que simule la página Letter (8.5x11) con márgenes de 1"
       pdfContainer = document.createElement('div');
       pdfContainer.style.cssText = `
-        width: 8.5in;
-        height: 11in;
-        padding: 1in 1in 0 1in;
+        width: 210mm;
+        height: 297mm;
+        padding: 25.4mm 25.4mm 0 25.4mm;
         background: white;
         box-sizing: border-box;
-        font-family: 'Kodchasan', sans-serif !important;
+        font-family: 'Kodchasan', sans-serif;
         margin: 0;
         position: absolute;
         left: -9999px;
@@ -69,21 +69,14 @@ export default function HojaEntrega() {
         display: block;
       `;
       pdfContainer.innerHTML = printRef.current.innerHTML;
-      
-      // Asegurar que todos los elementos dentro hereden Kodchasan
-      const allElements = pdfContainer.querySelectorAll('*');
-      allElements.forEach(el => {
-        el.style.fontFamily = "'Kodchasan', sans-serif";
-      });
-      
       document.body.appendChild(pdfContainer);
 
       // Esperar a que se renderize
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Capturar con escala más alta para mejor calidad
+      // Capturar con escala 100%
       const canvas = await html2canvas(pdfContainer, {
-        scale: 2,
+        scale: 1,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
@@ -195,85 +188,40 @@ export default function HojaEntrega() {
     
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
     iframeDoc.write(`
-      <!DOCTYPE html>
-      <html>
+       <html>
         <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Hoja de Entrega</title>
-          <link rel="preconnect" href="https://fonts.googleapis.com">
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+          <title>Descargo de Equipo</title>
           <link href="https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap');
-            
             @page {
-              size: letter;
-              margin: 1in 1in 0 1in !important;
+              margin-top: 1in;
+              margin-left: 1in;
+              margin-right: 1in;
+              margin-bottom: 0;
+              size: letter portrait;
             }
-            
-            @media print {
-              * {
-                margin: 0 !important;
-                padding: 0 !important;
-                box-sizing: border-box !important;
-                font-family: 'Kodchasan', sans-serif !important;
-              }
-              
-              html, body {
-                width: 8.5in !important;
-                height: 11in !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                font-family: 'Kodchasan', sans-serif !important;
-              }
-              
-              body {
-                font-family: 'Kodchasan', sans-serif !important;
-                line-height: 1.2;
-              }
-            }
-            
             * {
               margin: 0;
               padding: 0;
               font-family: 'Kodchasan', sans-serif !important;
-              box-sizing: border-box;
             }
-            
-            html {
-              width: 8.5in;
-              height: 11in;
-              font-family: 'Kodchasan', sans-serif !important;
-            }
-            
             body { 
               font-family: 'Kodchasan', sans-serif !important; 
               background: #fff; 
               color: #000;
-              width: 8.5in;
-              padding: 1in 1in 0 1in;
-              margin: 0;
             }
-            
-            table { 
-              border-collapse: collapse; 
-              width: 100%;
-              font-family: 'Kodchasan', sans-serif !important;
-            }
-            
-            td, th, tr, p, span, div {
-              font-family: 'Kodchasan', sans-serif !important;
-            }
-            
             img {
               max-width: 100%;
               height: auto;
               display: block;
             }
+            table { border-collapse: collapse; width: 100%; }
           </style>
         </head>
-        <body>${printRef.current.innerHTML}</body>
+        <body>
+          ${printRef.current.innerHTML}
+        </body>
       </html>
     `);
     iframeDoc.close();
@@ -502,7 +450,7 @@ export default function HojaEntrega() {
                 <tbody>
                   <tr>
                     <td style={{ 
-                      backgroundColor: '#EB7A00',
+                      backgroundColor: '#FF9500',
                       color: '#ffffff',
                       padding: '5px',
                       fontWeight: 'bold',
