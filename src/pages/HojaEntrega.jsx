@@ -61,7 +61,7 @@ export default function HojaEntrega() {
         padding: 1in 1in 0 1in;
         background: white;
         box-sizing: border-box;
-        font-family: 'Kodchasan', sans-serif;
+        font-family: 'Kodchasan', sans-serif !important;
         margin: 0;
         position: absolute;
         left: -9999px;
@@ -69,6 +69,13 @@ export default function HojaEntrega() {
         display: block;
       `;
       pdfContainer.innerHTML = printRef.current.innerHTML;
+      
+      // Asegurar que todos los elementos dentro hereden Kodchasan
+      const allElements = pdfContainer.querySelectorAll('*');
+      allElements.forEach(el => {
+        el.style.fontFamily = "'Kodchasan', sans-serif";
+      });
+      
       document.body.appendChild(pdfContainer);
 
       // Esperar a que se renderize
@@ -194,6 +201,8 @@ export default function HojaEntrega() {
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <title>Hoja de Entrega</title>
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
           <link href="https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap" rel="stylesheet">
           <style>
             @import url('https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap');
@@ -208,6 +217,7 @@ export default function HojaEntrega() {
                 margin: 0 !important;
                 padding: 0 !important;
                 box-sizing: border-box !important;
+                font-family: 'Kodchasan', sans-serif !important;
               }
               
               html, body {
@@ -215,6 +225,7 @@ export default function HojaEntrega() {
                 height: 11in !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                font-family: 'Kodchasan', sans-serif !important;
               }
               
               body {
@@ -233,6 +244,7 @@ export default function HojaEntrega() {
             html {
               width: 8.5in;
               height: 11in;
+              font-family: 'Kodchasan', sans-serif !important;
             }
             
             body { 
@@ -247,6 +259,11 @@ export default function HojaEntrega() {
             table { 
               border-collapse: collapse; 
               width: 100%;
+              font-family: 'Kodchasan', sans-serif !important;
+            }
+            
+            td, th, tr, p, span, div {
+              font-family: 'Kodchasan', sans-serif !important;
             }
             
             img {
@@ -485,7 +502,7 @@ export default function HojaEntrega() {
                 <tbody>
                   <tr>
                     <td style={{ 
-                      backgroundColor: '#FF9500',
+                      backgroundColor: '#EB7A00',
                       color: '#ffffff',
                       padding: '5px',
                       fontWeight: 'bold',
