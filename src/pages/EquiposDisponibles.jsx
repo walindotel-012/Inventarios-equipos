@@ -3,6 +3,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 
 const TIPOS_DISPOSITIVOS = [
@@ -174,7 +175,11 @@ export default function EquiposDisponibles() {
   const renderCell = (item, key) => {
     const value = item[key];
     if (key === 'tipo') {
-      return item.tipo === 'equipo' ? '💻 Equipo' : '📱 Celular';
+      return item.tipo === 'equipo' ? (
+        <Icon name="LaptopOutline" size="sm" color="#0ea5e9" />
+      ) : (
+        <Icon name="PhonePortraitOutline" size="sm" color="#10b981" />
+      );
     }
     return value || '-';
   };
@@ -282,7 +287,7 @@ export default function EquiposDisponibles() {
                     : '-'}
                 </p>
               </div>
-              <div className="text-4xl">💻</div>
+              <Icon name="LaptopOutline" size="xl" color="#16a34a" />
             </div>
           </div>
 
@@ -296,7 +301,7 @@ export default function EquiposDisponibles() {
                     : '-'}
                 </p>
               </div>
-              <div className="text-4xl">📱</div>
+              <Icon name="PhonePortraitOutline" size="xl" color="#a855f7" />
             </div>
           </div>
         </div>
@@ -312,7 +317,9 @@ export default function EquiposDisponibles() {
             </div>
           ) : dataFiltrada.length === 0 ? (
             <div className="p-12 text-center">
-              <div className="text-4xl mb-3">📭</div>
+              <div className="mb-3 flex justify-center">
+                <Icon name="BoxOutline" size="xl" color="#9ca3af" />
+              </div>
               <p className="text-gray-600 text-lg">No hay equipos disponibles con los filtros seleccionados</p>
               {searchTerm && (
                 <p className="text-gray-500 text-sm mt-2">Intenta cambiar los términos de búsqueda</p>

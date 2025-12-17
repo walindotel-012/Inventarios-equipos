@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 
 const MARCAS_CELULARES = ['Apple', 'Samsung', 'motorola', 'LG', 'Huawei', 'Xiaomi', 'Nokia', 'OnePlus', 'Google Pixel', 'Otro'];
@@ -206,9 +207,10 @@ export default function Celulares() {
           {!showForm && (
             <button
               onClick={handleNuevoCelular}
-              className="btn-primary"
+              className="btn-primary flex items-center justify-center gap-2"
             >
-              ➕ Nuevo Celular
+              <Icon name="AddOutline" size="sm" color="white" />
+              Nuevo Celular
             </button>
           )}
         </div>
@@ -220,7 +222,7 @@ export default function Celulares() {
           // Vista con formulario expandido
           <div className="card-saas-lg bg-white max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-500 rounded-xl flex items-center justify-center text-lg">📱</div>
+              <Icon name="PhonePortraitOutline" size="lg" color="#16a34a" />
               {editingId ? 'Editar Celular' : 'Nuevo Celular'}
             </h2>
 
@@ -383,16 +385,27 @@ export default function Celulares() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Guardando...' : editingId ? '✅ Actualizar' : '✅ Registrar'}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      {editingId ? 'Actualizar' : 'Registrar'}
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelar}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
                 >
-                  ❌ Cancelar
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
                 </button>
               </div>
             </form>
@@ -418,7 +431,9 @@ export default function Celulares() {
 
             {celulares.length === 0 && !loading && (
               <div className="p-12 text-center">
-                <div className="text-5xl mb-4">📱</div>
+                <div className="mb-4 flex justify-center">
+                  <Icon name="PhonePortraitOutline" size="xl" color="#9ca3af" />
+                </div>
                 <p className="text-gray-600 font-semibold">No hay celulares registrados aún</p>
                 <p className="text-sm text-gray-500 mt-1">Crea tu primer celular para empezar</p>
               </div>
@@ -473,15 +488,17 @@ export default function Celulares() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditar(celular)}
-                              className="btn-outline text-xs"
+                              className="btn-outline text-xs flex items-center justify-center gap-1"
                             >
-                              ✏️ Editar
+                              <Icon name="PencilOutline" size="sm" color="#0ea5e9" />
+                              Editar
                             </button>
                             <button
                               onClick={() => handleDelete(celular.id)}
-                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium"
+                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                             >
-                              🗑️ Eliminar
+                              <Icon name="TrashOutline" size="sm" color="#ef4444" />
+                              Eliminar
                             </button>
                           </div>
                         </td>

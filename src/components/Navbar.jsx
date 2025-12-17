@@ -47,9 +47,16 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 flex-shrink-0">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-lg text-white shadow-md">
-                📋
-              </div>
+              <img 
+                src="https://www.dropbox.com/scl/fi/5du7bzgz607gtzl0puo7w/Logotipo_Autom-aeslogan-mueve-tu-mundo-ahora.png?rlkey=qgl1ljzqex8tfk7p4fivgu32k&st=68jij2ts&dl=1" 
+                alt="AUTOMÍA Logo" 
+                style={{ 
+                  maxWidth: '100%',
+                  height: 'auto',
+                  maxHeight: '40px',
+                  display: 'block'
+                }} 
+              />
               <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent hidden sm:inline font-manrope">Gestión Equipos</span>
             </Link>
 

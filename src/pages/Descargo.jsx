@@ -11,6 +11,7 @@ import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToastManager } from '../hooks/useToastManager';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
@@ -406,15 +407,53 @@ export default function Descargo() {
     `);
     iframeDoc.close();
 
-    // Imprimir inmediatamente
-    iframe.contentWindow.print();
+    // Esperar a que se carguen todas las imágenes antes de imprimir
+    const images = iframeDoc.querySelectorAll('img');
+    let loadedImages = 0;
     
-    // Limpiar después de que se cierre el diálogo de impresión
-    setTimeout(() => {
-      try {
-        document.body.removeChild(iframe);
-      } catch (e) {}
-    }, 100);
+    const doPrint = () => {
+      iframe.contentWindow.print();
+      // Limpiar después de que se cierre el diálogo de impresión
+      setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch (e) {}
+      }, 100);
+    };
+    
+    if (images.length === 0) {
+      // Si no hay imágenes, imprimir inmediatamente
+      doPrint();
+    } else {
+      // Esperar a que todas las imágenes carguen
+      const onImageLoad = () => {
+        loadedImages++;
+        if (loadedImages === images.length) {
+          doPrint();
+        }
+      };
+      
+      images.forEach(img => {
+        if (img.complete) {
+          loadedImages++;
+        } else {
+          img.addEventListener('load', onImageLoad);
+          img.addEventListener('error', onImageLoad);
+        }
+      });
+      
+      // Verificar si ya están todas cargadas
+      if (loadedImages === images.length) {
+        doPrint();
+      }
+      
+      // Fallback: si las imágenes no cargan después de 3 segundos, imprimir de todas formas
+      setTimeout(() => {
+        if (loadedImages < images.length) {
+          doPrint();
+        }
+      }, 3000);
+    }
   };
 
   const generateReportPDF = async () => {
@@ -580,7 +619,7 @@ export default function Descargo() {
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">📋 Gestión de Descargos</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2 flex items-center gap-3"><Icon name="ClipboardOutline" size="lg" color="#0ea5e9" /> Gestión de Descargos</h1>
             <p className="text-gray-600">Registra, visualiza y genera reportes de descargos de equipos</p>
           </div>
 
@@ -594,7 +633,8 @@ export default function Descargo() {
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-500'
               }`}
             >
-              📥 Registrar Descargo
+              <Icon name="ClipboardOutline" size="sm" color={activeTab === 'descargo' ? 'white' : '#374151'} />
+              Registrar Descargo
             </button>
             <button
               onClick={() => setActiveTab('descargos')}
@@ -604,7 +644,8 @@ export default function Descargo() {
                   : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-500'
               }`}
             >
-              ✅ Equipos Descargados ({descargos.length})
+              <Icon name="CheckmarkDoneOutline" size="sm" color={activeTab === 'descargos' ? 'white' : '#374151'} />
+              Equipos Descargados ({descargos.length})
             </button>
           </div>
 
@@ -614,7 +655,7 @@ export default function Descargo() {
               {/* Panel de búsqueda y selección */}
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">🔍 Seleccionar Asignación</h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Icon name="SearchOutline" size="sm" color="#0ea5e9" /> Seleccionar Asignación</h2>
 
                   {/* Búsqueda */}
                   <div className="mb-4">
@@ -663,36 +704,44 @@ export default function Descargo() {
                   {/* Botones de acción */}
                   {selectedAsignacion && (
                     <div className="mt-6 space-y-3">
-                      <button
-                        onClick={() => setShowPDFModal(true)}
-                        className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
-                      >
-                        👁️ Vista Previa
-                      </button>
+                    
                       <button
                         onClick={() => handleSaveEdit(selectedAsignacion)}
                         disabled={loading}
-                        className="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                        className="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                       >
-                        {loading ? '⏳ Validando...' : '✅ Validar Descargo'}
+                        {loading ? (
+                          <>
+                            <Icon name="HourglassOutline" size="sm" color="white" />
+                            Validando...
+                          </>
+                        ) : (
+                          <>
+                            <Icon name="CheckmarkDoneOutline" size="sm" color="white" />
+                            Validar Descargo
+                          </>
+                        )}
                       </button>
                       <button
                         onClick={generatePDF}
-                        className="w-full px-4 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all"
+                        className="w-full px-4 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all flex items-center justify-center gap-2"
                       >
-                        📥 Descargar PDF
+                        <Icon name="CloudDownloadOutline" size="sm" color="white" />
+                        Descargar PDF
                       </button>
                       <button
                         onClick={handlePrint}
-                        className="w-full px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all"
+                        className="w-full px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
                       >
-                        🖨️ Imprimir
+                        <Icon name="PrintOutline" size="sm" color="white" />
+                        Imprimir
                       </button>
                       <button
                         onClick={() => setSelectedAsignacion(null)}
-                        className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                        className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
                       >
-                        ❌ Cancelar
+                        <Icon name="CloseOutline" size="sm" color="#374151" />
+                        Cancelar
                       </button>
                     </div>
                   )}
@@ -704,7 +753,9 @@ export default function Descargo() {
                 {!selectedAsignacion ? (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center justify-center min-h-96">
                     <div className="text-center">
-                      <div className="text-6xl mb-4">📄</div>
+                      <div className="mb-4 flex justify-center">
+                        <Icon name="DocumentOutline" size="xl" color="#9ca3af" />
+                      </div>
                       <p className="text-gray-600 text-lg">Selecciona una asignación para ver el formulario de descargo</p>
                     </div>
                   </div>
@@ -727,15 +778,17 @@ export default function Descargo() {
                 <div className="flex gap-3">
                   <button
                     onClick={generateReportPDF}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all text-sm"
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all text-sm flex items-center justify-center gap-2"
                   >
-                    📄 Descargar PDF
+                    <Icon name="DocumentOutline" size="sm" color="white" />
+                    Descargar PDF
                   </button>
                   <button
                     onClick={generateReportExcel}
-                    className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all text-sm"
+                    className="px-4 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all text-sm flex items-center justify-center gap-2"
                   >
-                    📊 Descargar Excel
+                    <Icon name="BarChartOutline" size="sm" color="white" />
+                    Descargar Excel
                   </button>
                 </div>
               </div>
@@ -781,8 +834,18 @@ export default function Descargo() {
                       filteredDescargos.map((descargo) => (
                         <tr key={descargo.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">{descargo.nombre}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {descargo.codActivoFijo ? '💻 Equipo' : '📱 Celular'}
+                          <td className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
+                            {descargo.codActivoFijo ? (
+                              <>
+                                <Icon name="LaptopOutline" size="sm" color="#6b7280" />
+                                Equipo
+                              </>
+                            ) : (
+                              <>
+                                <Icon name="PhonePortraitOutline" size="sm" color="#6b7280" />
+                                Celular
+                              </>
+                            )}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-600">
                             {descargo.codActivoFijo || descargo.serialCelular}
@@ -802,9 +865,9 @@ export default function Descargo() {
                           <td className="px-4 py-3 text-sm">
                             <button
                               onClick={() => handleDelete(descargo.id)}
-                              className="text-red-600 hover:text-red-800 font-semibold"
+                              className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1"
                             >
-                              🗑️
+                              <Icon name="TrashOutline" size="sm" color="#ef4444" />
                             </button>
                           </td>
                         </tr>
@@ -828,7 +891,9 @@ export default function Descargo() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
             <div className="text-center mb-6">
-              <div className="text-4xl mb-2">✅</div>
+              <div className="mb-2 flex justify-center">
+                <Icon name="CheckmarkCircleOutline" size="xl" color="#10b981" />
+              </div>
               <h2 className="text-2xl font-bold text-gray-900 mb-2">¡Descargo Validado!</h2>
               <p className="text-gray-600">
                 Los equipos de <strong>{validatedAsignacion.nombre}</strong> han sido liberados correctamente.
@@ -842,22 +907,34 @@ export default function Descargo() {
             <div className="space-y-3">
               <button
                 onClick={handlePreviewPDF}
-                className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all"
+                className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
               >
-                👁️ Vista Previa
+                <Icon name="EyeOutline" size="sm" color="white" />
+                Vista Previa
               </button>
               <button
                 onClick={handleDownloadPDF}
                 disabled={loading}
-                className="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50"
+                className="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? '⏳ Descargando...' : '📥 Descargar PDF'}
+                {loading ? (
+                  <>
+                    <Icon name="HourglassOutline" size="sm" color="white" />
+                    Descargando...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="CloudDownloadOutline" size="sm" color="white" />
+                    Descargar PDF
+                  </>
+                )}
               </button>
               <button
                 onClick={handlePrintPDF}
-                className="w-full px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all"
+                className="w-full px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
               >
-                🖨️ Imprimir
+                <Icon name="PrintOutline" size="sm" color="white" />
+                Imprimir
               </button>
               <button
                 onClick={() => {

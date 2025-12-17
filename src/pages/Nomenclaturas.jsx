@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 
 export default function Nomenclaturas() {
@@ -198,9 +199,10 @@ export default function Nomenclaturas() {
               </div>
 
               {charCount > MAX_CHARS && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-2">
+                  <Icon name="AlertCircleOutline" size="sm" color="#dc2626" />
                   <p className="text-red-700 text-sm font-semibold">
-                    ❌ No se pueden guardar más de {MAX_CHARS} caracteres. Intenta nuevamente.
+                    No se pueden guardar más de {MAX_CHARS} caracteres. Intenta nuevamente.
                   </p>
                 </div>
               )}
@@ -209,16 +211,27 @@ export default function Nomenclaturas() {
                 <button
                   type="submit"
                   disabled={loading || charCount > MAX_CHARS || charCount === 0}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Guardando...' : editingId ? '✅ Actualizar' : '✅ Registrar'}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      {editingId ? 'Actualizar' : 'Registrar'}
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelar}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
                 >
-                  ❌ Cancelar
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
                 </button>
               </div>
             </form>

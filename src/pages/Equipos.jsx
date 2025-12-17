@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc, query, where } 
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 
 const TIPOS_DISPOSITIVOS = [
@@ -282,8 +283,10 @@ export default function Equipos() {
           // Vista con formulario expandido
           <div className="card-saas-lg bg-white max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl flex items-center justify-center text-lg">💻</div>
-              {editingId ? 'Editar Equipo' : 'Nuevo Equipo'}
+              <div className="flex items-center gap-3">
+                <Icon name="LaptopOutline" size="lg" color="#0ea5e9" />
+                {editingId ? 'Editar Equipo' : 'Nuevo Equipo'}
+              </div>
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -458,16 +461,27 @@ export default function Equipos() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn-primary flex-1"
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
                 >
-                  {loading ? 'Guardando...' : editingId ? '✅ Actualizar' : '✅ Registrar'}
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      {editingId ? 'Actualizar' : 'Registrar'}
+                    </>
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleCancelar}
-                  className="btn-secondary flex-1"
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
                 >
-                  ❌ Cancelar
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
                 </button>
               </div>
             </form>
@@ -488,7 +502,7 @@ export default function Equipos() {
                 <div className="flex-1">
                   <input
                     type="text"
-                    placeholder="🔍 Buscar por código o serial..."
+                    placeholder="Buscar por código o serial..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value.toUpperCase())}
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
@@ -584,18 +598,20 @@ export default function Equipos() {
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleEditar(equipo)}
-                              className="btn-outline text-xs"
+                              className="btn-outline text-xs flex items-center justify-center gap-1"
                             >
-                              ✏️ Editar
+                              <Icon name="PencilOutline" size="sm" color="#0ea5e9" />
+                              Editar
                             </button>
                             <button
                               onClick={() => handleDelete(equipo.id)}
-                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium"
+                              className="px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-xs font-medium flex items-center justify-center gap-1"
                             >
-                              🗑️ Eliminar
+                              <Icon name="TrashOutline" size="sm" color="#ef4444" />
+                              Eliminar
                             </button>
                           </div>
-                          </td>
+                        </td>
                         </tr>
                       ));
                     })()}

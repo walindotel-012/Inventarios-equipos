@@ -10,6 +10,7 @@ import {
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 import * as XLSX from 'xlsx';
 
@@ -582,15 +583,17 @@ export default function Asignacion() {
             <div className="flex gap-3">
               <button
                 onClick={handleExportToExcel}
-                className="btn-secondary"
+                className="btn-secondary flex items-center justify-center gap-2"
               >
-                📊 Exportar Excel
+                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
+                Exportar Excel
               </button>
               <button
                 onClick={handleNueva}
-                className="btn-primary"
+                className="btn-primary flex items-center justify-center gap-2"
               >
-                ➕ Nueva Asignación
+                <Icon name="AddOutline" size="sm" color="white" />
+                Nueva Asignación
               </button>
             </div>
           )}
@@ -601,7 +604,7 @@ export default function Asignacion() {
         {showForm ? (
           <div className="card-saas-lg bg-white">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-8 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-xl flex items-center justify-center text-lg">📋</div>
+              <Icon name="DocumentOutline" size="lg" color="#0ea5e9" />
               {editingId ? 'Editar Asignación' : 'Nueva Asignación'}
             </h2>
 
@@ -963,11 +966,22 @@ export default function Asignacion() {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button type="submit" disabled={loading} className="flex-1 btn-primary">
-                  {loading ? 'Guardando...' : editingId ? '✅ Actualizar' : '✅ Registrar'}
+                <button type="submit" disabled={loading} className="flex-1 btn-primary flex items-center justify-center gap-2">
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      {editingId ? 'Actualizar' : 'Registrar'}
+                    </>
+                  )}
                 </button>
-                <button type="button" onClick={handleCancelar} className="flex-1 btn-secondary">
-                  ❌ Cancelar
+                <button type="button" onClick={handleCancelar} className="flex-1 btn-secondary flex items-center justify-center gap-2">
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
                 </button>
               </div>
             </form>
@@ -990,7 +1004,9 @@ export default function Asignacion() {
 
             {asignaciones.length === 0 && !loading && (
               <div className="p-12 text-center">
-                <div className="text-4xl mb-3">📋</div>
+                <div className="mb-3 flex justify-center">
+                  <Icon name="DocumentOutline" size="xl" color="#9ca3af" />
+                </div>
                 <p className="text-gray-600 text-lg">No hay asignaciones registradas aún</p>
                 <p className="text-sm text-gray-500 mt-2">Crea tu primera asignación usando el botón</p>
               </div>
@@ -1021,11 +1037,12 @@ export default function Asignacion() {
                         <td className="p-4 text-gray-600">{asignacion.fechaAsignacion}</td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <button onClick={() => handleEditar(asignacion)} className="btn-outline text-sm">
-                              ✏️ Editar
+                            <button onClick={() => handleEditar(asignacion)} className="btn-outline text-sm flex items-center justify-center gap-1">
+                              <Icon name="PencilOutline" size="sm" color="#0ea5e9" />
+                              Editar
                             </button>
-                            <button onClick={() => handleDelete(asignacion.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium">
-                              🗑️
+                            <button onClick={() => handleDelete(asignacion.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center gap-1">
+                              <Icon name="TrashOutline" size="sm" color="#ef4444" />
                             </button>
                           </div>
                         </td>

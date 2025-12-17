@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import Icon from '../components/Icon';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -192,7 +193,7 @@ export default function HojaEntrega() {
     iframeDoc.write(`
        <html>
         <head>
-          <title>Descargo de Equipo</title>
+          <title>Hoja de Entrega de Equipo</title>
           <style>
             @page {
               margin-top: 1in;
@@ -226,15 +227,53 @@ export default function HojaEntrega() {
     `);
     iframeDoc.close();
     
-    // Imprimir inmediatamente
-    iframe.contentWindow.print();
+    // Esperar a que se carguen todas las imágenes antes de imprimir
+    const images = iframeDoc.querySelectorAll('img');
+    let loadedImages = 0;
     
-    // Limpiar después de que se cierre el diálogo de impresión
-    setTimeout(() => {
-      try {
-        document.body.removeChild(iframe);
-      } catch (e) {}
-    }, 100);
+    const doPrint = () => {
+      iframe.contentWindow.print();
+      // Limpiar después de que se cierre el diálogo de impresión
+      setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch (e) {}
+      }, 100);
+    };
+    
+    if (images.length === 0) {
+      // Si no hay imágenes, imprimir inmediatamente
+      doPrint();
+    } else {
+      // Esperar a que todas las imágenes carguen
+      const onImageLoad = () => {
+        loadedImages++;
+        if (loadedImages === images.length) {
+          doPrint();
+        }
+      };
+      
+      images.forEach(img => {
+        if (img.complete) {
+          loadedImages++;
+        } else {
+          img.addEventListener('load', onImageLoad);
+          img.addEventListener('error', onImageLoad);
+        }
+      });
+      
+      // Verificar si ya están todas cargadas
+      if (loadedImages === images.length) {
+        doPrint();
+      }
+      
+      // Fallback: si las imágenes no cargan después de 3 segundos, imprimir de todas formas
+      setTimeout(() => {
+        if (loadedImages < images.length) {
+          doPrint();
+        }
+      }, 3000);
+    }
   };
 
   return (
@@ -254,7 +293,7 @@ export default function HojaEntrega() {
           <div className="lg:col-span-1">
             <div className="card-saas sticky top-24">
               <h2 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
-                <span className="text-2xl">🔍</span> Seleccionar Asignación
+                <Icon name="SearchOutline" size="sm" color="#0ea5e9" /> Seleccionar Asignación
               </h2>
 
               <div className="mb-4">
@@ -302,15 +341,17 @@ export default function HojaEntrega() {
                 <div className="mt-4 space-y-2">
                   <button
                     onClick={generatePDF}
-                    className="w-full btn-primary"
+                    className="w-full btn-primary flex items-center justify-center gap-2"
                   >
-                    📥 Descargar PDF
+                    <Icon name="CloudDownloadOutline" size="sm" color="white" />
+                    Descargar PDF
                   </button>
                   <button
                     onClick={handlePrint}
-                    className="w-full btn-secondary"
+                    className="w-full btn-secondary flex items-center justify-center gap-2"
                   >
-                    🖨️ Imprimir
+                    <Icon name="PrintOutline" size="sm" color="#6b7280" />
+                    Imprimir
                   </button>
                 </div>
               )}
@@ -322,7 +363,9 @@ export default function HojaEntrega() {
             {!selectedAsignacion ? (
               <div className="card-saas flex items-center justify-center min-h-96">
                 <div className="text-center">
-                  <div className="text-4xl mb-3">📄</div>
+                  <div className="mb-3 flex justify-center">
+                    <Icon name="DocumentOutline" size="xl" color="#9ca3af" />
+                  </div>
                   <p className="text-gray-600 text-lg">Selecciona una asignación para ver la hoja de entrega</p>
                 </div>
               </div>
@@ -449,7 +492,7 @@ export default function HojaEntrega() {
                 <tbody>
                   <tr>
                     <td style={{ 
-                      backgroundColor: '#FF9500',
+                      backgroundColor: '#EB7A00',
                       color: '#ffffff',
                       padding: '5px',
                       fontWeight: 'bold',
@@ -543,7 +586,7 @@ export default function HojaEntrega() {
 
               {/* Descripción del Equipo */}
               
-              <div style={{ backgroundColor: '#EB7A00', color: '#fff', padding: '5px 8px', fontWeight: 800, fontSize: '10px' }}>
+              <div style={{ backgroundColor: '#EB7A00', color: '#ffffff', padding: '5px', fontWeight: 'bold', fontSize: '9pt', border: '1.5px solid #000000', fontFamily: "'Kodchasan', sans-serif !important" }}>
                 Descripción del Equipo
               </div>
 
@@ -683,7 +726,7 @@ export default function HojaEntrega() {
               </table>
 
               {/* Observaciones */}
-              <div style={{ backgroundColor: '#EB7A00', color: 'rgba(255, 255, 255, 1)', padding: '5px 8px', fontWeight: 800, fontSize: '10px' }}>
+              <div style={{ backgroundColor: '#EB7A00', color: '#ffffff', padding: '5px', fontWeight: 'bold', fontSize: '9pt', border: '1.5px solid #000000', fontFamily: "'Kodchasan', sans-serif !important" }}>
                 Observaciones:
               </div>
 
@@ -692,7 +735,7 @@ export default function HojaEntrega() {
               </div>
 
               {/* Datos de quién realiza la entrega */}
-              <div style={{ backgroundColor: '#EB7A00', color: '#fff', padding: '5px 8px', fontWeight: 800, fontSize: '10px' }}>
+              <div style={{ backgroundColor: '#EB7A00', color: '#ffffff', padding: '5px', fontWeight: 'bold', fontSize: '9pt', border: '1.5px solid #000000', fontFamily: "'Kodchasan', sans-serif !important" }}>
                 Datos de quién realiza la entrega
               </div>
 
@@ -715,15 +758,15 @@ export default function HojaEntrega() {
                   <tr>
                     <td style={{ width: '33%', textAlign: 'center', paddingTop: '10px' }}>
                       <div style={{ borderTop: '1px solid #000', margin: '0 auto', width: '80%', height: '8px' }} />
-                      <div style={{ fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>Firma del Colaborador</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '9pt', marginTop: '4px', fontFamily: "'Kodchasan', sans-serif !important" }}>Firma del Colaborador</div>
                     </td>
                      <td style={{ width: '33%', textAlign: 'center', paddingTop: '200px' }}>
                       <div style={{ borderTop: '1px solid #000', margin: '0 auto', width: '90%', height: '8px' }} />
-                      <div style={{ fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>Coordinador de TI y Proyectos</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '9pt', marginTop: '4px', fontFamily: "'Kodchasan', sans-serif !important" }}>Coordinador de TI y Proyectos</div>
                     </td>
                     <td style={{ width: '33%', textAlign: 'center', paddingTop: '10px' }}>
                       <div style={{ borderTop: '1px solid #000', margin: '0 auto', width: '80%', height: '8px' }} />
-                      <div style={{ fontWeight: 700, fontSize: '12px', marginTop: '4px' }}>Firma Supervisor/a</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '9pt', marginTop: '4px', fontFamily: "'Kodchasan', sans-serif !important" }}>Firma Supervisor/a</div>
                     </td>
                    
                   </tr>
