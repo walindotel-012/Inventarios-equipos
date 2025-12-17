@@ -4,6 +4,13 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='15' width='80' height='55' rx='3' fill='none' stroke='%23003399' stroke-width='3' stroke-linejoin='round'/><path d='M 15 70 L 30 80 L 70 80 L 85 70' fill='none' stroke='%23003399' stroke-width='3' stroke-linejoin='round'/><circle cx='30' cy='80' r='3' fill='%23003399'/><circle cx='70' cy='80' r='3' fill='%23003399'/><line x1='35' y1='15' x2='35' y2='10' stroke='%23003399' stroke-width='2' stroke-linecap='round'/><line x1='65' y1='15' x2='65' y2='10' stroke='%23003399' stroke-width='2' stroke-linecap='round'/></svg>" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sistema de gestión de inventario de equipos de TI para AUTOMÍA" />
+    <meta name="theme-color" content="#003399" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Inventario" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect x='30' y='45' width='120' height='90' rx='5' fill='%23003399'/><path d='M 40 135 L 60 150 L 120 150 L 140 135' fill='%23003399'/><circle cx='60' cy='150' r='6' fill='%23ffffff'/><circle cx='120' cy='150' r='6' fill='%23ffffff'/><line x1='75' y1='45' x2='75' y2='30' stroke='%23ffffff' stroke-width='4' stroke-linecap='round'/><line x1='105' y1='45' x2='105' y2='30' stroke='%23ffffff' stroke-width='4' stroke-linecap='round'/></svg>" />
+    <link rel="manifest" href="/Inventarios-equipos/manifest.json" />
     <title>Inventario de Equipos</title>
     <!-- Google Fonts - Kodchasan -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,5 +23,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Registrar Service Worker
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/Inventarios-equipos/sw.js')
+            .then((registration) => {
+              console.log('Service Worker registrado:', registration);
+            })
+            .catch((error) => {
+              console.log('Error al registrar Service Worker:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>
