@@ -7,6 +7,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        sans: ['Kodchasan', 'sans-serif'],
         kodchasan: ['Kodchasan', 'sans-serif'],
       },
     },

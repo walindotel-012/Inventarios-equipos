@@ -12,11 +12,11 @@
 
 html {
   scroll-behavior: smooth;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Kodchasan', sans-serif;
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Kodchasan', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -59,42 +59,45 @@ body {
   --color-background: #fafbfc;
 }
 
-/* Aplicar Inter a todos los elementos */
+/* Aplicar Kodchasan a todos los elementos */
 @layer base {
   html, body, div, p, h1, h2, h3, h4, h5, h6, button, input, select, textarea, label, span {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   h1 {
     @apply font-bold text-4xl text-gray-900;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   h2 {
     @apply font-bold text-2xl text-gray-900;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   h3 {
     @apply font-bold text-lg text-gray-800;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   h4 {
     @apply font-semibold text-base text-gray-700;
-    font-family: 'Manrope', sans-serif;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   button {
     @apply font-semibold transition-all duration-200;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   p {
     @apply text-gray-600 leading-relaxed;
+    font-family: 'Kodchasan', sans-serif;
   }
 
   input, select, textarea {
     @apply font-normal;
+    font-family: 'Kodchasan', sans-serif;
   }
 }
 
