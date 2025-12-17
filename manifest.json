@@ -1,0 +1,62 @@
+{
+  "name": "Inventario de Equipos",
+  "short_name": "Inventario",
+  "description": "Sistema de gestión de inventario de equipos de TI para AUTOMÍA",
+  "start_url": "/Inventarios-equipos/",
+  "scope": "/Inventarios-equipos/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#003399",
+  "background_color": "#ffffff",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect x='40' y='60' width='112' height='110' rx='6' fill='none' stroke='%23003399' stroke-width='8' stroke-linejoin='round'/><path d='M 50 140 L 80 160 L 140 160 L 170 140' fill='none' stroke='%23003399' stroke-width='8' stroke-linejoin='round'/><circle cx='80' cy='160' r='8' fill='%23003399'/><circle cx='140' cy='160' r='8' fill='%23003399'/><line x1='100' y1='60' x2='100' y2='40' stroke='%23003399' stroke-width='6' stroke-linecap='round'/><line x1='156' y1='60' x2='156' y2='40' stroke='%23003399' stroke-width='6' stroke-linecap='round'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect x='80' y='120' width='352' height='280' rx='16' fill='none' stroke='%23003399' stroke-width='20' stroke-linejoin='round'/><path d='M 100 400 L 160 480 L 432 480 L 492 400' fill='none' stroke='%23003399' stroke-width='20' stroke-linejoin='round'/><circle cx='160' cy='480' r='20' fill='%23003399'/><circle cx='432' cy='480' r='20' fill='%23003399'/><line x1='240' y1='120' x2='240' y2='80' stroke='%23003399' stroke-width='16' stroke-linecap='round'/><line x1='392' y1='120' x2='392' y2='80' stroke='%23003399' stroke-width='16' stroke-linecap='round'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect width='540' height='720' fill='%23f3f4f6'/><rect x='20' y='40' width='500' height='640' rx='8' fill='white' stroke='%23003399' stroke-width='2'/><text x='270' y='100' font-size='32' text-anchor='middle' fill='%23003399' font-family='Arial'>Inventario de Equipos</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Gestión de Asignaciones",
+      "short_name": "Asignaciones",
+      "description": "Acceder directamente a la gestión de asignaciones",
+      "url": "/Inventarios-equipos/#/asignacion",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='48' r='44' fill='%23003399'/><text x='48' y='56' font-size='32' text-anchor='middle' fill='white' font-family='Arial'>A</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "Descargos de Equipos",
+      "short_name": "Descargos",
+      "description": "Acceder a la gestión de descargos",
+      "url": "/Inventarios-equipos/#/descargo",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='48' r='44' fill='%2310b981'/><text x='48' y='56' font-size='32' text-anchor='middle' fill='white' font-family='Arial'>D</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}
