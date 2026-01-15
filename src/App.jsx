@@ -10,6 +10,8 @@ import Descargo from './pages/Descargo';
 import Celulares from './pages/Celulares';
 import EquiposDisponibles from './pages/EquiposDisponibles';
 import IconShowcase from './pages/IconShowcase';
+import AdminPermisos from './pages/AdminPermisos';
+import Bitacora from './pages/Bitacora';
 import Navbar from './components/Navbar';
 
 function ProtectedRoute({ children }) {
@@ -55,6 +57,8 @@ function App() {
                       <Route path="/equipos-disponibles" element={<EquiposDisponibles />} />
                       <Route path="/hoja-entrega" element={<HojaEntrega />} />
                       <Route path="/descargo" element={<Descargo />} />
+                      <Route path="/admin-permisos" element={<AdminPermisos />} />
+                      <Route path="/bitacora" element={<Bitacora />} />
                       <Route path="/icon-showcase" element={<IconShowcase />} />
                     </Routes>
                   </main>

@@ -1,0 +1,99 @@
+# 📋 ORDEN DE INSERCIÓN - ASIGNACIONES (Versión Simple)
+
+## Cuando se guarda una asignación, se insertan estos campos **EN ESTE ORDEN**:
+
+### 🏢 EMPRESA Y UBICACIÓN (6 campos)
+```
+1. sucursal
+2. oficina
+3. puesto
+4. nombre
+5. usuario
+6. empresa
+```
+
+### 💻 EQUIPO PRINCIPAL (13 campos)
+```
+7. equipo
+8. codActivoFijo
+9. netbiosName
+10. marca
+11. modelo
+12. sn
+13. disco
+14. memoria
+15. procesador
+16. so
+17. licencia
+18. tipoEquipo
+19. condicion
+```
+
+### 📅 FECHAS Y RESPONSABLES (5 campos)
+```
+20. fechaAsignacion
+21. asignadoPor
+22. hojaEntregaUrl
+23. nombreEntrega
+24. fechaEntrega
+```
+
+### 💻 EQUIPO SECUNDARIO (12 campos)
+```
+25. equipoSecundario
+26. codActivoFijoSecundario
+27. marcaSecundario
+28. modeloSecundario
+29. snSecundario
+30. discoSecundario
+31. memoriaSecundario
+32. procesadorSecundario
+33. soSecundario
+34. licenciaSecundario
+35. tipoEquipoSecundario
+36. condicionSecundario
+```
+
+### 📱 CELULAR (10 campos)
+```
+37. celularId
+38. serialCelular
+39. marcaCelular
+40. modeloCelular
+41. numeroCelular
+42. condicionCelular
+43. restriccionCelular
+44. imeiCelular
+45. planCelular
+46. fechaAsignacionCelular
+```
+
+### 📝 OBSERVACIONES (1 campo)
+```
+47. observaciones
+```
+
+### ⏰ TIMESTAMP (1 campo - AUTOMÁTICO)
+```
+48. fechaRegistro ← Agregado automáticamente por Firestore
+```
+
+---
+
+## 📊 RESUMEN
+
+| Sección | Campos | Total |
+|---------|--------|-------|
+| Empresa | 6 | 6 |
+| Equipo 1 | 13 | 19 |
+| Fechas | 5 | 24 |
+| Equipo 2 | 12 | 36 |
+| Celular | 10 | 46 |
+| Observaciones | 1 | 47 |
+| **TOTAL** | **48** | **48** |
+
+---
+
+**Ubicación del código:** `src/pages/Asignacion.jsx` línea 315-323
+
+Ver documento completo: [ESTRUCTURA_ASIGNACIONES.md](ESTRUCTURA_ASIGNACIONES.md)

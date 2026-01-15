@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   collection,
   addDoc,
@@ -6,25 +7,40 @@ import {
   deleteDoc,
   doc,
   updateDoc,
+  onSnapshot,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
+import { logAudit } from '../utils/auditLog';
 import * as XLSX from 'xlsx';
 
 export default function Asignacion() {
   const { currentUser } = useAuth();
   const { toast, showToast, hideToast } = useToastManager();
+  const [searchParams] = useSearchParams();
   const [asignaciones, setAsignaciones] = useState([]);
   const [equipos, setEquipos] = useState([]);
   const [celulares, setCelulares] = useState([]);
   const [nomenclaturas, setNomenclaturas] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(searchParams.get('form') === 'true');
   const [editingId, setEditingId] = useState(null);
   const [showEquipoSecundario, setShowEquipoSecundario] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [searchSerial, setSearchSerial] = useState('');
+  const [searchNombre, setSearchNombre] = useState('');
+  const [searchUsuario, setSearchUsuario] = useState('');
+  const [searchFecha, setSearchFecha] = useState('');
+  const [searchEquipo, setSearchEquipo] = useState('');
+  const [searchModelo, setSearchModelo] = useState('');
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importText, setImportText] = useState('');
 
   const [formData, setFormData] = useState({
     sucursal: '',
@@ -74,113 +90,138 @@ export default function Asignacion() {
     restriccionCelular: '',
     imeiCelular: '',
     planCelular: '',
+    tipoEquipoCelular: '',
     fechaAsignacionCelular: '',
     observaciones: '',
   });
 
   useEffect(() => {
-    loadAsignaciones();
-    loadEquipos();
-    loadCelulares();
-    loadNomenclaturas();
+    // Usar listeners en tiempo real en lugar de getDocs una sola vez
+    const unsubscribeAsignaciones = onSnapshot(collection(db, 'asignaciones'), (snapshot) => {
+      try {
+        const asignacionesList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAsignaciones(asignacionesList);
+      } catch (error) {
+        console.error('Error en listener de asignaciones:', error);
+      }
+    });
+
+    const unsubscribeEquipos = onSnapshot(collection(db, 'equipos'), (snapshot) => {
+      try {
+        const equiposList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setEquipos(equiposList);
+      } catch (error) {
+        console.error('Error en listener de equipos:', error);
+      }
+    });
+
+    const unsubscribeCelulares = onSnapshot(collection(db, 'celulares'), (snapshot) => {
+      try {
+        const celularesList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setCelulares(celularesList);
+      } catch (error) {
+        console.error('Error en listener de celulares:', error);
+      }
+    });
+
+    const unsubscribeNomenclaturas = onSnapshot(collection(db, 'nomenclaturas'), (snapshot) => {
+      try {
+        const nomenclaturasList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setNomenclaturas(nomenclaturasList);
+      } catch (error) {
+        console.error('Error en listener de nomenclaturas:', error);
+      }
+    });
+
+    // Limpiar listeners al desmontar
+    return () => {
+      unsubscribeAsignaciones();
+      unsubscribeEquipos();
+      unsubscribeCelulares();
+      unsubscribeNomenclaturas();
+    };
   }, []);
 
-  const loadAsignaciones = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'asignaciones'));
-      const asignacionesList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setAsignaciones(asignacionesList);
-    } catch (error) {
-      console.error('Error cargando asignaciones:', error);
+  // Abrir formulario si viene parámetro form=true desde el Dashboard
+  useEffect(() => {
+    if (searchParams.get('form') === 'true') {
+      handleNueva();
     }
-  };
+  }, [searchParams]);
 
-  const loadEquipos = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'equipos'));
-      const equiposList = querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        // Filtrar solo equipos disponibles (no asignados)
-        .filter(equipo => !equipo.asignado || equipo.estado === 'disponible');
-      setEquipos(equiposList);
-    } catch (error) {
-      console.error('Error cargando equipos:', error);
+  // Efecto para mantener formData actualizado si se edita y hay cambios en asignaciones
+  useEffect(() => {
+    if (editingId) {
+      const asignacionActualizada = asignaciones.find(a => a.id === editingId);
+      if (asignacionActualizada) {
+        setFormData(asignacionActualizada);
+      }
     }
-  };
+  }, [asignaciones, editingId]);
 
-  const loadCelulares = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'celulares'));
-      const celularesList = querySnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        // Filtrar solo celulares disponibles (no asignados)
-        .filter(celular => !celular.asignado || celular.estado === 'disponible');
-      setCelulares(celularesList);
-    } catch (error) {
-      console.error('Error cargando celulares:', error);
-    }
-  };
-
-  const loadNomenclaturas = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'nomenclaturas'));
-      const nomenclaturasList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setNomenclaturas(nomenclaturasList);
-    } catch (error) {
-      console.error('Error cargando nomenclaturas:', error);
-    }
-  };
-
-  const handleEquipoChange = (snValue) => {
-    const equipo = equipos.find(e => e.sn === snValue);
-    if (equipo) {
+  const handleEquipoChange = async (snValue) => {
+    if (!snValue) {
       setFormData(prev => ({
         ...prev,
-        equipo: equipo.id,
-        codActivoFijo: equipo.codActivoFijo,
-        marca: equipo.marca,
-        modelo: equipo.modelo,
-        sn: equipo.sn,
-        disco: equipo.disco,
-        memoria: equipo.memoria,
-        procesador: equipo.procesador,
-        so: equipo.so,
-        licencia: equipo.licencia,
-        tipoEquipo: equipo.tipoEquipo,
-        condicion: equipo.condicion,
+        equipo: '',
+        codActivoFijo: '',
+        marca: '',
+        modelo: '',
+        sn: '',
+        disco: '',
+        memoria: '',
+        procesador: '',
+        so: '',
+        licencia: '',
+        tipoEquipo: '',
+        condicion: '',
       }));
+      return;
+    }
+
+    try {
+      // Buscar el equipo en Firestore directamente
+      const equiposSnapshot = await getDocs(collection(db, 'equipos'));
+      const equipoEncontrado = equiposSnapshot.docs.find(d => d.data().sn === snValue);
+      
+      if (equipoEncontrado) {
+        const equipoData = equipoEncontrado.data();
+        setFormData(prev => ({
+          ...prev,
+          equipo: equipoEncontrado.id,
+          codActivoFijo: equipoData.codActivoFijo || '',
+          marca: equipoData.marca || '',
+          modelo: equipoData.modelo || '',
+          sn: equipoData.sn || '',
+          disco: equipoData.disco || '',
+          memoria: equipoData.memoria || '',
+          procesador: equipoData.procesador || '',
+          so: equipoData.so || '',
+          licencia: equipoData.licencia || '',
+          tipoEquipo: equipoData.tipoEquipo || '',
+          condicion: equipoData.condicion || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Error al obtener datos del equipo:', error);
+      showToast('Error al cargar datos del equipo', 'error');
     }
   };
 
-  const handleCelularChange = (celularId) => {
-    const celular = celulares.find(c => c.id === celularId);
-    if (celular) {
-      setFormData(prev => ({
-        ...prev,
-        celularId: celular.id,
-        serialCelular: celular.serial || '',
-        marcaCelular: celular.marca || '',
-        modeloCelular: celular.modelo || '',
-        numeroCelular: celular.numero || '',
-        condicionCelular: celular.condicion || '',
-        restriccionCelular: celular.restriccion || '',
-        imeiCelular: celular.imei || '',
-        planCelular: celular.plan || '',
-        fechaAsignacionCelular: celular.fechaEntrega || new Date().toISOString().split('T')[0],
-      }));
-    } else if (celularId === '') {
+  const handleCelularChange = async (celularId) => {
+    if (!celularId) {
       setFormData(prev => ({
         ...prev,
         celularId: '',
@@ -192,30 +233,42 @@ export default function Asignacion() {
         restriccionCelular: '',
         imeiCelular: '',
         planCelular: '',
+        tipoEquipoCelular: '',
         fechaAsignacionCelular: '',
       }));
+      return;
+    }
+
+    try {
+      // Obtener el celular directamente de Firestore
+      const celularRef = doc(db, 'celulares', celularId);
+      const celularSnap = await getDoc(celularRef);
+      
+      if (celularSnap.exists()) {
+        const celularData = celularSnap.data();
+        setFormData(prev => ({
+          ...prev,
+          celularId: celularId,
+          serialCelular: celularData.serial || '',
+          marcaCelular: celularData.marca || '',
+          modeloCelular: celularData.modelo || '',
+          numeroCelular: celularData.numero || '',
+          condicionCelular: celularData.condicion || '',
+          restriccionCelular: celularData.restriccion || '',
+          imeiCelular: celularData.imei || '',
+          planCelular: celularData.plan || '',
+          tipoEquipoCelular: celularData.tipoEquipo || '',
+          fechaAsignacionCelular: celularData.fechaEntrega || new Date().toISOString().split('T')[0],
+        }));
+      }
+    } catch (error) {
+      console.error('Error al obtener datos del celular:', error);
+      showToast('Error al cargar datos del celular', 'error');
     }
   };
 
-  const handleEquipoSecundarioChange = (snValue) => {
-    const equipo = equipos.find(e => e.sn === snValue);
-    if (equipo) {
-      setFormData(prev => ({
-        ...prev,
-        equipoSecundario: equipo.id,
-        codActivoFijoSecundario: equipo.codActivoFijo,
-        marcaSecundario: equipo.marca,
-        modeloSecundario: equipo.modelo,
-        snSecundario: equipo.sn,
-        discoSecundario: equipo.disco,
-        memoriaSecundario: equipo.memoria,
-        procesadorSecundario: equipo.procesador,
-        soSecundario: equipo.so,
-        licenciaSecundario: equipo.licencia,
-        tipoEquipoSecundario: equipo.tipoEquipo,
-        condicionSecundario: equipo.condicion,
-      }));
-    } else if (snValue === '') {
+  const handleEquipoSecundarioChange = async (snValue) => {
+    if (!snValue) {
       setFormData(prev => ({
         ...prev,
         equipoSecundario: '',
@@ -231,6 +284,35 @@ export default function Asignacion() {
         tipoEquipoSecundario: '',
         condicionSecundario: '',
       }));
+      return;
+    }
+
+    try {
+      // Buscar el equipo en Firestore directamente
+      const equiposSnapshot = await getDocs(collection(db, 'equipos'));
+      const equipoEncontrado = equiposSnapshot.docs.find(d => d.data().sn === snValue);
+      
+      if (equipoEncontrado) {
+        const equipoData = equipoEncontrado.data();
+        setFormData(prev => ({
+          ...prev,
+          equipoSecundario: equipoEncontrado.id,
+          codActivoFijoSecundario: equipoData.codActivoFijo || '',
+          marcaSecundario: equipoData.marca || '',
+          modeloSecundario: equipoData.modelo || '',
+          snSecundario: equipoData.sn || '',
+          discoSecundario: equipoData.disco || '',
+          memoriaSecundario: equipoData.memoria || '',
+          procesadorSecundario: equipoData.procesador || '',
+          soSecundario: equipoData.so || '',
+          licenciaSecundario: equipoData.licencia || '',
+          tipoEquipoSecundario: equipoData.tipoEquipo || '',
+          condicionSecundario: equipoData.condicion || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Error al obtener datos del equipo secundario:', error);
+      showToast('Error al cargar datos del equipo secundario', 'error');
     }
   };
 
@@ -242,6 +324,73 @@ export default function Asignacion() {
     }));
   };
 
+  const handleUpdateCodigosActivos = async () => {
+    const confirmUpdate = window.confirm(
+      `⚠️ ATENCIÓN: Esto actualizará los códigos de activo fijo de TODOS los ${equipos.length} equipos registrados.\n\nNuevo formato: ATM-EQ-001, ATM-EQ-002, etc.\n\n¿Deseas proceder? Esta acción es irreversible.`
+    );
+
+    if (!confirmUpdate) {
+      showToast('Operación cancelada', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let actualizados = 0;
+      let errores = 0;
+      const cambios = [];
+
+      // Ordenar equipos por ID para mantener consistencia
+      const equiposOrdenados = [...equipos].sort((a, b) => a.id.localeCompare(b.id));
+
+      // Actualizar cada equipo con el nuevo código
+      for (let i = 0; i < equiposOrdenados.length; i++) {
+        try {
+          const equipo = equiposOrdenados[i];
+          const nuevoCodigoActivo = `ATM-EQ-${String(i + 1).padStart(3, '0')}`;
+          const codigoAnterior = equipo.codActivoFijo;
+
+          // Actualizar en tabla de equipos
+          await updateDoc(doc(db, 'equipos', equipo.id), {
+            codActivoFijo: nuevoCodigoActivo
+          });
+
+          // Actualizar en asignaciones donde aparezca como equipo principal
+          const asignacionesEquipoPrincipal = asignaciones.filter(a => a.codActivoFijo === codigoAnterior);
+          for (const asignacion of asignacionesEquipoPrincipal) {
+            await updateDoc(doc(db, 'asignaciones', asignacion.id), {
+              codActivoFijo: nuevoCodigoActivo
+            });
+          }
+
+          // Actualizar en asignaciones donde aparezca como equipo secundario
+          const asignacionesEquipoSecundario = asignaciones.filter(a => a.codActivoFijoSecundario === codigoAnterior);
+          for (const asignacion of asignacionesEquipoSecundario) {
+            await updateDoc(doc(db, 'asignaciones', asignacion.id), {
+              codActivoFijoSecundario: nuevoCodigoActivo
+            });
+          }
+
+          cambios.push(`${codigoAnterior} → ${nuevoCodigoActivo}`);
+          actualizados++;
+        } catch (error) {
+          console.error('Error actualizando equipo:', error);
+          errores++;
+        }
+      }
+
+      const mensaje = `✅ Actualización completada:\n• ${actualizados} equipos actualizados\n• ${errores} errores\n\nPrimeros cambios:\n${cambios.slice(0, 5).join('\n')}${cambios.length > 5 ? `\n... y ${cambios.length - 5} más` : ''}`;
+      
+      showToast(`${actualizados} equipos actualizados exitosamente`, 'success');
+      alert(mensaje);
+    } catch (error) {
+      console.error('Error en actualización masiva:', error);
+      showToast('Error al actualizar códigos', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -251,16 +400,7 @@ export default function Asignacion() {
       return;
     }
 
-    // Validación: NO permitir 3 registros (Principal + Secundario + Celular)
-    const tieneEquipoPrincipal = !!formData.sn;
-    const tieneEquipoSecundario = !!formData.snSecundario;
-    const tieneCelular = !!formData.serialCelular;
-
-    if (tieneEquipoPrincipal && tieneEquipoSecundario && tieneCelular) {
-      showToast('❌ No se puede asignar simultáneamente: Equipo Principal, Equipo Secundario y Celular. Máximo 2 dispositivos.', 'error');
-      return;
-    }
-
+    // Validación: permitir Equipo Principal + Equipo Secundario + Celular simultáneamente
     if (!formData.equipo && !formData.serialCelular && !formData.equipoSecundario) {
       showToast('Por favor asigna al menos un equipo o un celular', 'warning');
       return;
@@ -272,6 +412,16 @@ export default function Asignacion() {
       );
       if (equipoAsignado) {
         showToast(`Este equipo (Serial: ${formData.sn}) ya está asignado a: ${equipoAsignado.nombre}`, 'warning');
+        return;
+      }
+    }
+
+    if (formData.snSecundario) {
+      const equipoSecAsignado = asignaciones.find(a => 
+        a.snSecundario === formData.snSecundario && a.id !== editingId
+      );
+      if (equipoSecAsignado) {
+        showToast(`Este equipo secundario (Serial: ${formData.snSecundario}) ya está asignado a: ${equipoSecAsignado.nombre}`, 'warning');
         return;
       }
     }
@@ -299,54 +449,153 @@ export default function Asignacion() {
     try {
       setLoading(true);
       
+      // Si estamos editando, obtener los datos anteriores para comparar
+      let asignacionAnterior = null;
+      if (editingId) {
+        asignacionAnterior = asignaciones.find(a => a.id === editingId);
+      }
+
       if (editingId) {
         await updateDoc(doc(db, 'asignaciones', editingId), {
           ...formData,
           actualizadoPor: currentUser?.displayName || currentUser?.email,
           fechaActualizacion: new Date(),
         });
+        
+        // Registrar en auditoría
+        await logAudit(
+          currentUser.uid,
+          currentUser?.displayName || currentUser?.email,
+          'UPDATE',
+          'Asignaciones',
+          editingId,
+          {
+            anterior: asignacionAnterior,
+            nuevo: formData,
+          }
+        );
+        
         showToast('Asignación actualizada exitosamente', 'success');
       } else {
         // Agregar nueva asignación
-        await addDoc(collection(db, 'asignaciones'), {
+        const docRef = await addDoc(collection(db, 'asignaciones'), {
           ...formData,
           fechaRegistro: new Date(),
         });
-
-        // Si es un equipo, marcarlo como asignado
-        if (formData.codActivoFijo) {
-          const equipoToUpdate = equipos.find(e => e.codActivoFijo === formData.codActivoFijo);
-          if (equipoToUpdate) {
-            await updateDoc(doc(db, 'equipos', equipoToUpdate.id), {
-              estado: 'asignado',
-              asignado: true,
-            });
+        
+        // Registrar en auditoría
+        await logAudit(
+          currentUser.uid,
+          currentUser?.displayName || currentUser?.email,
+          'CREATE',
+          'Asignaciones',
+          docRef.id,
+          {
+            nombre: formData.nombre,
+            usuario: formData.usuario,
+            equipo: `${formData.marca} ${formData.modelo}`,
+            sn: formData.sn,
           }
-        }
-
-        // Si es un equipo secundario, marcarlo como asignado
-        if (formData.codActivoFijoSecundario) {
-          const equipoSecToUpdate = equipos.find(e => e.codActivoFijo === formData.codActivoFijoSecundario);
-          if (equipoSecToUpdate) {
-            await updateDoc(doc(db, 'equipos', equipoSecToUpdate.id), {
-              estado: 'asignado',
-              asignado: true,
-            });
-          }
-        }
-
-        // Si es un celular, marcarlo como asignado
-        if (formData.serialCelular) {
-          const celularToUpdate = celulares.find(c => c.serial === formData.serialCelular);
-          if (celularToUpdate) {
-            await updateDoc(doc(db, 'celulares', celularToUpdate.id), {
-              estado: 'asignado',
-              asignado: true,
-            });
-          }
-        }
-
+        );
+        
         showToast('Asignación registrada exitosamente', 'success');
+      }
+
+      // Marcar equipos como asignados SIEMPRE (tanto en creación como en actualización)
+      // Si es un equipo principal, marcarlo como asignado
+      if (formData.sn) {
+        const equipoToUpdate = equipos.find(e => e.sn === formData.sn);
+        if (equipoToUpdate) {
+          await updateDoc(doc(db, 'equipos', equipoToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      } else if (formData.codActivoFijo) {
+        const equipoToUpdate = equipos.find(e => e.codActivoFijo === formData.codActivoFijo);
+        if (equipoToUpdate) {
+          await updateDoc(doc(db, 'equipos', equipoToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      }
+
+      // Si el equipo principal cambió durante edición, devolver el anterior a disponible
+      if (editingId && asignacionAnterior?.sn && asignacionAnterior.sn !== formData.sn) {
+        const equipoPrincipalAnterior = equipos.find(e => e.sn === asignacionAnterior.sn);
+        if (equipoPrincipalAnterior) {
+          await updateDoc(doc(db, 'equipos', equipoPrincipalAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.codActivoFijo && !formData.sn && asignacionAnterior.codActivoFijo !== formData.codActivoFijo) {
+        const equipoPrincipalAnterior = equipos.find(e => e.codActivoFijo === asignacionAnterior.codActivoFijo);
+        if (equipoPrincipalAnterior) {
+          await updateDoc(doc(db, 'equipos', equipoPrincipalAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
+      }
+
+      // Si es un equipo secundario, marcarlo como asignado
+      if (formData.snSecundario) {
+        const equipoSecToUpdate = equipos.find(e => e.sn === formData.snSecundario);
+        if (equipoSecToUpdate) {
+          await updateDoc(doc(db, 'equipos', equipoSecToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.snSecundario) {
+        // Si quitó el equipo secundario, devolverlo a disponible
+        const equipoSecAnterior = equipos.find(e => e.sn === asignacionAnterior.snSecundario);
+        if (equipoSecAnterior) {
+          await updateDoc(doc(db, 'equipos', equipoSecAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.snSecundario && asignacionAnterior.snSecundario !== formData.snSecundario) {
+        // Si cambió el equipo secundario
+        const equipoSecAnterior = equipos.find(e => e.sn === asignacionAnterior.snSecundario);
+        if (equipoSecAnterior) {
+          await updateDoc(doc(db, 'equipos', equipoSecAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
+      }
+
+      // Si es un celular, marcarlo como asignado
+      if (formData.serialCelular) {
+        const celularToUpdate = celulares.find(c => c.serial === formData.serialCelular);
+        if (celularToUpdate) {
+          await updateDoc(doc(db, 'celulares', celularToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.serialCelular) {
+        // Si quitó el celular, devolverlo a disponible
+        const celularAnterior = celulares.find(c => c.serial === asignacionAnterior.serialCelular);
+        if (celularAnterior) {
+          await updateDoc(doc(db, 'celulares', celularAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.serialCelular && asignacionAnterior.serialCelular !== formData.serialCelular) {
+        // Si cambió el celular
+        const celularAnterior = celulares.find(c => c.serial === asignacionAnterior.serialCelular);
+        if (celularAnterior) {
+          await updateDoc(doc(db, 'celulares', celularAnterior.id), {
+            estado: 'disponible',
+            asignado: false,
+          });
+        }
       }
 
       setFormData({
@@ -397,13 +646,13 @@ export default function Asignacion() {
         restriccionCelular: '',
         imeiCelular: '',
         planCelular: '',
+        tipoEquipoCelular: '',
         fechaAsignacionCelular: '',
         observaciones: '',
       });
 
       setShowEquipoSecundario(false);
       setEditingId(null);
-      loadAsignaciones();
     } catch (error) {
       console.error('Error al guardar:', error);
       showToast('Error al registrar asignación', 'error');
@@ -413,7 +662,9 @@ export default function Asignacion() {
   };
 
   const handleEditar = (asignacion) => {
-    setFormData(asignacion);
+    // Buscar la asignación actualizada en el array completo
+    const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
+    setFormData(asignacionActualizada);
     setEditingId(asignacion.id);
     setShowForm(true);
   };
@@ -455,6 +706,7 @@ export default function Asignacion() {
       restriccionCelular: '',
       imeiCelular: '',
       planCelular: '',
+      tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
       observaciones: '',
     });
@@ -495,6 +747,7 @@ export default function Asignacion() {
       restriccionCelular: '',
       imeiCelular: '',
       planCelular: '',
+      tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
       observaciones: '',
     });
@@ -502,20 +755,364 @@ export default function Asignacion() {
     setShowForm(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta asignación?')) {
-      try {
-        setLoading(true);
-        await deleteDoc(doc(db, 'asignaciones', id));
-        showToast('Asignación eliminada', 'success');
-        loadAsignaciones();
-      } catch (error) {
-        console.error('Error al eliminar:', error);
-        showToast('Error al eliminar asignación', 'error');
-      } finally {
-        setLoading(false);
+  const handleDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      setLoading(true);
+      
+      // Obtener los datos de la asignación antes de eliminarla
+      const asignacionAEliminar = asignaciones.find(a => a.id === deleteId);
+      
+      // Eliminar la asignación
+      await deleteDoc(doc(db, 'asignaciones', deleteId));
+      
+      // Registrar en auditoría
+      await logAudit(
+        currentUser.uid,
+        currentUser?.displayName || currentUser?.email,
+        'DELETE',
+        'Asignaciones',
+        deleteId,
+        {
+          nombre: asignacionAEliminar?.nombre,
+          usuario: asignacionAEliminar?.usuario,
+          equipo: `${asignacionAEliminar?.marca} ${asignacionAEliminar?.modelo}`,
+          sn: asignacionAEliminar?.sn,
+        }
+      );
+      
+      // Marcar todos los equipos asociados como disponibles
+      if (asignacionAEliminar) {
+        // Devolver equipo principal a disponible
+        if (asignacionAEliminar.sn) {
+          const equipoPrincipal = equipos.find(e => e.sn === asignacionAEliminar.sn);
+          if (equipoPrincipal) {
+            await updateDoc(doc(db, 'equipos', equipoPrincipal.id), {
+              estado: 'disponible',
+              asignado: false,
+            });
+          }
+        }
+
+        // Devolver equipo secundario a disponible
+        if (asignacionAEliminar.snSecundario) {
+          const equipoSecundario = equipos.find(e => e.sn === asignacionAEliminar.snSecundario);
+          if (equipoSecundario) {
+            await updateDoc(doc(db, 'equipos', equipoSecundario.id), {
+              estado: 'disponible',
+              asignado: false,
+            });
+          }
+        }
+
+        // Devolver celular a disponible
+        if (asignacionAEliminar.serialCelular) {
+          const celular = celulares.find(c => c.serial === asignacionAEliminar.serialCelular);
+          if (celular) {
+            await updateDoc(doc(db, 'celulares', celular.id), {
+              estado: 'disponible',
+              asignado: false,
+            });
+          }
+        }
       }
+      
+      showToast('Asignación eliminada', 'success');
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      showToast('Error al eliminar asignación', 'error');
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
     }
+  };
+
+  const handleImportAsignaciones = async (e) => {
+    e.preventDefault();
+
+    if (!importText.trim()) {
+      showToast('Por favor pega las asignaciones a importar', 'warning');
+      return;
+    }
+
+    // Parsear las asignaciones del texto (tab-separated)
+    const lineas = importText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lineas.length === 0) {
+      showToast('No hay asignaciones válidas para importar', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let importadas = 0;
+      let errores = 0;
+
+      for (const linea of lineas) {
+        try {
+          // Parsear los campos separados por TAB
+          const campos = linea.split('\t').map(c => c.trim());
+
+          // Validar que haya al menos 18 campos
+          if (campos.length < 18) {
+            console.warn(`Línea skipped (campos insuficientes): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          const [sucursal, oficina, departamento, puesto, nombre, usuario, codActivoFijo, netbiosName, marca, modelo, sn, disco, memoria, procesador, so, licencia, fechaAsignacion, asignadoPor] = campos;
+
+          // Validar campos requeridos
+          if (!sucursal || !nombre || !usuario) {
+            console.warn(`Línea skipped (campos vacíos requeridos): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          // Buscar el equipo por código de activo fijo si existe
+          let equipo = null;
+          let tipoEquipo = '';
+          let condicion = '';
+
+          if (codActivoFijo) {
+            equipo = equipos.find(e => e.codActivoFijo === codActivoFijo);
+            if (equipo) {
+              tipoEquipo = equipo.tipoEquipo || '';
+              condicion = equipo.condicion || '';
+            }
+          }
+
+          // Crear la asignación
+          await addDoc(collection(db, 'asignaciones'), {
+            sucursal: sucursal.trim(),
+            oficina: oficina.trim(),
+            puesto: puesto.trim(),
+            nombre: nombre.trim(),
+            usuario: usuario.trim(),
+            empresa: 'AUTOMÍA SAS',
+            equipo: marca && modelo ? `${marca} ${modelo}` : '',
+            codActivoFijo: codActivoFijo.trim() || '',
+            netbiosName: netbiosName.trim() || '',
+            marca: marca.trim() || '',
+            modelo: modelo.trim() || '',
+            sn: sn.trim().toUpperCase() || '',
+            disco: disco.trim() || '',
+            memoria: memoria.trim() || '',
+            procesador: procesador.trim() || '',
+            so: so.trim() || '',
+            licencia: licencia.trim() || '',
+            tipoEquipo: tipoEquipo,
+            condicion: condicion,
+            fechaAsignacion: fechaAsignacion.trim() || new Date().toISOString().split('T')[0],
+            asignadoPor: asignadoPor.trim() || currentUser.displayName || currentUser.email,
+            hojaEntregaUrl: '',
+            nombreEntrega: currentUser.displayName || currentUser.email,
+            fechaEntrega: new Date().toISOString().split('T')[0],
+            equipoSecundario: '',
+            codActivoFijoSecundario: '',
+            marcaSecundario: '',
+            modeloSecundario: '',
+            snSecundario: '',
+            discoSecundario: '',
+            memoriaSecundario: '',
+            procesadorSecundario: '',
+            soSecundario: '',
+            licenciaSecundario: '',
+            tipoEquipoSecundario: '',
+            condicionSecundario: '',
+            celularId: '',
+            serialCelular: '',
+            marcaCelular: '',
+            modeloCelular: '',
+            numeroCelular: '',
+            condicionCelular: '',
+            restriccionCelular: '',
+            imeiCelular: '',
+            planCelular: '',
+            fechaAsignacionCelular: '',
+            observaciones: '',
+            fechaRegistro: new Date(),
+          });
+
+          // Si existe el equipo, marcarlo como asignado
+          if (equipo && codActivoFijo) {
+            await updateDoc(doc(db, 'equipos', equipo.id), {
+              estado: 'asignado',
+              asignado: true,
+            });
+          }
+
+          importadas++;
+        } catch (lineError) {
+          console.error('Error procesando línea:', lineError);
+          errores++;
+        }
+      }
+
+      let mensaje = `Se importaron ${importadas} asignación${importadas !== 1 ? 'es' : ''}`;
+      if (errores > 0) {
+        mensaje += ` (${errores} línea${errores !== 1 ? 's' : ''} con error)`;
+      }
+      showToast(mensaje, importadas > 0 ? 'success' : 'warning');
+
+      setImportText('');
+      setShowImportForm(false);
+    } catch (error) {
+      console.error('Error al importar:', error);
+      showToast('Error al importar asignaciones', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExportEquipoSecundario = () => {
+    // Filtrar solo asignaciones con equipo secundario
+    const asignacionesFiltradas = asignaciones.filter(a => a.snSecundario);
+    
+    if (asignacionesFiltradas.length === 0) {
+      showToast('No hay asignaciones con equipo secundario para exportar', 'warning');
+      return;
+    }
+
+    const dataExport = asignacionesFiltradas.map(asignacion => ({
+      'Sucursal': asignacion.sucursal,
+      'Oficina': asignacion.oficina,
+      'Puesto': asignacion.puesto,
+      'Nombre': asignacion.nombre,
+      'Usuario': asignacion.usuario,
+      'Empresa': asignacion.empresa,
+      'Tipo de equipo': asignacion.tipoEquipoSecundario || '',
+      'Equipo S/N': asignacion.snSecundario || '',
+      'Código Activo': asignacion.codActivoFijoSecundario || '',
+      'Marca': asignacion.marcaSecundario || '',
+      'Modelo': asignacion.modeloSecundario || '',
+      'NetBios': asignacion.netbiosName || '',
+      'Disco': asignacion.discoSecundario || '',
+      'Memoria': asignacion.memoriaSecundario || '',
+      'Procesador': asignacion.procesadorSecundario || '',
+      'SO': asignacion.soSecundario || '',
+      'Licencia': asignacion.licenciaSecundario || '',
+      'Condición': asignacion.condicionSecundario || '',
+      'Fecha Asignación': asignacion.fechaAsignacion,
+      'Asignado Por': asignacion.asignadoPor,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipo Secundario');
+
+    const columnWidths = [
+      { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+      { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }
+    ];
+    ws['!cols'] = columnWidths;
+
+    XLSX.writeFile(wb, `Asignaciones_Equipo_Secundario_${new Date().toLocaleDateString('es-ES')}.xlsx`);
+    showToast('Reporte exportado exitosamente', 'success');
+  };
+
+  const handleExportCelular = () => {
+    // Filtrar solo asignaciones con celular
+    const asignacionesFiltradas = asignaciones.filter(a => a.serialCelular);
+    
+    if (asignacionesFiltradas.length === 0) {
+      showToast('No hay asignaciones con celular para exportar', 'warning');
+      return;
+    }
+
+    const dataExport = asignacionesFiltradas.map(asignacion => ({
+      'Sucursal': asignacion.sucursal,
+      'Oficina': asignacion.oficina,
+      'Puesto': asignacion.puesto,
+      'Nombre': asignacion.nombre,
+      'Usuario': asignacion.usuario,
+      'Empresa': asignacion.empresa,
+      'Marca': asignacion.marcaCelular || '',
+      'Modelo': asignacion.modeloCelular || '',
+      'Serial': asignacion.serialCelular || '',
+      'IMEI': asignacion.imeiCelular || '',
+      'Número': asignacion.numeroCelular || '',
+      'Condición': asignacion.condicionCelular || '',
+      'Restricción': asignacion.restriccionCelular || '',
+      'Plan': asignacion.planCelular || '',
+      'Fecha Asignación': asignacion.fechaAsignacionCelular || '',
+      'Observaciones': asignacion.observaciones || '',
+      'Fecha Asignación General': asignacion.fechaAsignacion,
+      'Asignado Por': asignacion.asignadoPor,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Celulares');
+
+    const columnWidths = [
+      { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+      { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 15 }, { wch: 15 }
+    ];
+    ws['!cols'] = columnWidths;
+
+    XLSX.writeFile(wb, `Asignaciones_Celulares_${new Date().toLocaleDateString('es-ES')}.xlsx`);
+    showToast('Reporte exportado exitosamente', 'success');
+  };
+
+  const handleExportEquipoPrimario = () => {
+    // Filtrar solo asignaciones con equipo principal
+    const asignacionesFiltradas = asignaciones.filter(a => a.sn || a.codActivoFijo);
+    
+    if (asignacionesFiltradas.length === 0) {
+      showToast('No hay asignaciones con equipo principal para exportar', 'warning');
+      return;
+    }
+
+    const dataExport = asignacionesFiltradas.map(asignacion => ({
+      'Sucursal': asignacion.sucursal,
+      'Oficina': asignacion.oficina,
+      'Puesto': asignacion.puesto,
+      'Nombre': asignacion.nombre,
+      'Usuario': asignacion.usuario,
+      'Empresa': asignacion.empresa,
+      'Equipo': `${asignacion.marca || ''} ${asignacion.modelo || ''}`.trim(),
+      'S/N': asignacion.sn || '',
+      'Código Activo': asignacion.codActivoFijo || '',
+      'NetBios': asignacion.netbiosName || '',
+      'Disco': asignacion.disco || '',
+      'Memoria': asignacion.memoria || '',
+      'Procesador': asignacion.procesador || '',
+      'SO': asignacion.so || '',
+      'Licencia': asignacion.licencia || '',
+      'Fecha Asignación': asignacion.fechaAsignacion,
+      'Asignado Por': asignacion.asignadoPor,
+      'Observaciones': asignacion.observaciones || '',
+      'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Equipo Principal');
+
+    const columnWidths = [
+      { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+      { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
+      { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
+      { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 25 }
+    ];
+    ws['!cols'] = columnWidths;
+
+    XLSX.writeFile(wb, `Asignaciones_Equipo_Principal_${new Date().toLocaleDateString('es-ES')}.xlsx`);
+    showToast('Reporte exportado exitosamente', 'success');
   };
 
   const handleExportToExcel = () => {
@@ -524,7 +1121,30 @@ export default function Asignacion() {
       return;
     }
 
-    const dataExport = asignaciones.map(asignacion => ({
+    // Aplicar los mismos filtros que se ven en la tabla
+    const asignacionesFiltradas = asignaciones.filter(asignacion => {
+      const matchSerial = !searchSerial || 
+        asignacion.sn?.toLowerCase().includes(searchSerial.toLowerCase()) ||
+        asignacion.snSecundario?.toLowerCase().includes(searchSerial.toLowerCase()) ||
+        asignacion.serialCelular?.toLowerCase().includes(searchSerial.toLowerCase());
+      const matchNombre = asignacion.nombre
+        .toLowerCase()
+        .includes(searchNombre.toLowerCase());
+      const matchUsuario = asignacion.usuario
+        .toLowerCase()
+        .includes(searchUsuario.toLowerCase());
+      const matchFecha = !searchFecha || asignacion.fechaAsignacion === searchFecha;
+      const matchEquipo = !searchEquipo || asignacion.tipoEquipo === searchEquipo;
+      const matchModelo = !searchModelo || asignacion.modelo === searchModelo;
+      return matchSerial && matchNombre && matchUsuario && matchFecha && matchEquipo && matchModelo;
+    });
+
+    if (asignacionesFiltradas.length === 0) {
+      showToast('No hay asignaciones que coincidan con los filtros para exportar', 'warning');
+      return;
+    }
+
+    const dataExport = asignacionesFiltradas.map(asignacion => ({
       'Sucursal': asignacion.sucursal,
       'Oficina': asignacion.oficina,
       'Puesto': asignacion.puesto,
@@ -569,6 +1189,7 @@ export default function Asignacion() {
     ws['!cols'] = columnWidths;
 
     XLSX.writeFile(wb, `Asignaciones_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('Reporte exportado exitosamente', 'success');
   };
 
   return (
@@ -579,15 +1200,37 @@ export default function Asignacion() {
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Gestión de Asignaciones</h1>
             <p className="text-gray-600 text-base">Registra y administra asignaciones de equipos a colaboradores</p>
           </div>
-          {!showForm && (
-            <div className="flex gap-3">
+          {!showForm && !showImportForm && (
+            <div className="flex gap-3 flex-wrap">
               <button
-                onClick={handleExportToExcel}
+                onClick={() => setShowImportForm(true)}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <span className="text-base">📥</span>
+                Importar en Lote
+              </button>
+              <button
+                onClick={handleExportEquipoPrimario}
                 className="btn-secondary flex items-center justify-center gap-2"
               >
                 <Icon name="BarChartOutline" size="sm" color="#6b7280" />
-                Exportar Excel
+                Export Equipo Principal
               </button>
+              <button
+                onClick={handleExportEquipoSecundario}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
+                Export Equipo Secundario
+              </button>
+              <button
+                onClick={handleExportCelular}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
+                Export Celulares
+              </button>
+           
               <button
                 onClick={handleNueva}
                 className="btn-primary flex items-center justify-center gap-2"
@@ -601,7 +1244,97 @@ export default function Asignacion() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {showForm ? (
+        {showImportForm ? (
+          <div className="card-saas-lg bg-white">
+            <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-8 flex items-center gap-3">
+              <span className="text-3xl">📥</span>
+              Importar Asignaciones en Lote
+            </h2>
+
+            <div className="bg-blue-50 rounded-2xl border-2 border-blue-100 p-6 mb-8">
+              <h3 className="font-semibold text-gray-900 mb-4">📋 Formato Esperado (Tab-separated):</h3>
+              <div className="bg-white rounded-lg p-4 font-mono text-xs md:text-sm overflow-x-auto mb-4">
+                <div className="text-gray-600">
+                  Sucursal<span className="text-purple-600">⇥</span>
+                  Oficina<span className="text-purple-600">⇥</span>
+                  Departamento<span className="text-purple-600">⇥</span>
+                  Puesto<span className="text-purple-600">⇥</span>
+                  Nombre<span className="text-purple-600">⇥</span>
+                  Usuario<span className="text-purple-600">⇥</span>
+                  Cod. Activo Fijo<span className="text-purple-600">⇥</span>
+                  NetBios Name<span className="text-purple-600">⇥</span>
+                  Marca<span className="text-purple-600">⇥</span>
+                  Modelo<span className="text-purple-600">⇥</span>
+                  S/N<span className="text-purple-600">⇥</span>
+                  Disco<span className="text-purple-600">⇥</span>
+                  Memoria<span className="text-purple-600">⇥</span>
+                  Procesador<span className="text-purple-600">⇥</span>
+                  S.O<span className="text-purple-600">⇥</span>
+                  Licencia<span className="text-purple-600">⇥</span>
+                  Fecha de Asignación<span className="text-purple-600">⇥</span>
+                  Asignado por
+                </div>
+              </div>
+              <p className="text-sm text-gray-600">
+                <strong>Requeridos:</strong> Sucursal, Nombre, Usuario<br/>
+                <strong>Nota:</strong> Usa Tab (⇥) para separar campos
+              </p>
+            </div>
+
+            <form onSubmit={handleImportAsignaciones} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Pega aquí las asignaciones a importar:
+                </label>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Pega las asignaciones separadas por Tab y con una asignación por línea..."
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
+                  rows="10"
+                  required
+                />
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>⚠️ Aviso:</strong> Se importarán {importText.trim().split('\n').filter(line => line.trim()).length} asignación(es)
+                </p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 btn-primary flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-base">📥</span>
+                      Importar
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImportForm(false);
+                    setImportText('');
+                  }}
+                  className="flex-1 btn-secondary flex items-center justify-center gap-2"
+                >
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : showForm ? (
           <div className="card-saas-lg bg-white">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-8 flex items-center gap-3">
               <Icon name="DocumentOutline" size="lg" color="#0ea5e9" />
@@ -695,20 +1428,29 @@ export default function Asignacion() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N) *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
                     <select
                       name="equipo"
                       value={formData.sn}
                       onChange={(e) => handleEquipoChange(e.target.value)}
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                      required
                     >
                       <option value="">Seleccionar serial...</option>
-                      {equipos.map(eq => (
-                        <option key={eq.id} value={eq.sn}>
-                          {eq.sn} - {eq.marca} {eq.modelo}
-                        </option>
-                      ))}
+                      {equipos.map(eq => {
+                        const isCurrentlyAssigned = formData.equipo && eq.id === formData.equipo;
+                        const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                        
+                        // Solo mostrar equipos disponibles o el actualmente seleccionado
+                        if (!isAvailable && !isCurrentlyAssigned) {
+                          return null;
+                        }
+                        
+                        return (
+                          <option key={eq.id} value={eq.sn}>
+                            {eq.sn} - {eq.marca} {eq.modelo}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   <div>
@@ -740,11 +1482,19 @@ export default function Asignacion() {
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
                     >
                       <option value="">Seleccionar...</option>
-                      {nomenclaturas.map(nom => (
-                        <option key={nom.id} value={nom.netbiosName}>
-                          {nom.netbiosName}
-                        </option>
-                      ))}
+                      {nomenclaturas
+                        .filter(nom => {
+                          const isCurrentlyAssigned = formData.netbiosName === nom.netbiosName;
+                          const isAssignedToOther = asignaciones.some(a => 
+                            a.netbiosName === nom.netbiosName && a.id !== editingId
+                          );
+                          return isCurrentlyAssigned || !isAssignedToOther;
+                        })
+                        .map(nom => (
+                          <option key={nom.id} value={nom.netbiosName}>
+                            {nom.netbiosName}
+                          </option>
+                        ))}
                     </select>
                   </div>
                   <div>
@@ -803,11 +1553,27 @@ export default function Asignacion() {
                         className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
                       >
                         <option value="">Seleccionar serial...</option>
-                        {equipos.map(eq => (
-                          <option key={eq.id} value={eq.sn}>
-                            {eq.sn} - {eq.marca} {eq.modelo}
-                          </option>
-                        ))}
+                        {equipos.map(eq => {
+                          const isCurrentlyAssigned = formData.equipoSecundario && eq.id === formData.equipoSecundario;
+                          const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                          const isPrimaryEquipment = formData.equipo && eq.id === formData.equipo;
+                          
+                          // No mostrar si está asignado y no es el seleccionado actualmente
+                          if (!isAvailable && !isCurrentlyAssigned) {
+                            return null;
+                          }
+                          
+                          // No mostrar si es el equipo principal y no es el seleccionado actualmente
+                          if (isPrimaryEquipment && !isCurrentlyAssigned) {
+                            return null;
+                          }
+                          
+                          return (
+                            <option key={eq.id} value={eq.sn}>
+                              {eq.sn} - {eq.marca} {eq.modelo}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div>
@@ -858,11 +1624,26 @@ export default function Asignacion() {
                       className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
                     >
                       <option value="">Seleccionar celular...</option>
-                      {celulares.map(cel => (
-                        <option key={cel.id} value={cel.id}>
-                          {cel.serial} - {cel.marca} {cel.modelo}
-                        </option>
-                      ))}
+                      {celulares.map(cel => {
+                        const isCurrentlyAssigned = formData.celularId && cel.id === formData.celularId;
+                        const isAvailable = !cel.asignado || cel.estado === 'disponible';
+                        
+                        // Solo mostrar celulares disponibles o el celular asignado a ESTA asignación específica
+                        // Si estamos editando (editingId existe), permitir el celular de esta asignación
+                        // Si no, solo permitir celulares disponibles
+                        const celularAsignacionActual = editingId && asignaciones.find(a => a.id === editingId && a.celularId === cel.id);
+                        const canShow = isAvailable || isCurrentlyAssigned || !!celularAsignacionActual;
+                        
+                        if (!canShow) {
+                          return null;
+                        }
+                        
+                        return (
+                          <option key={cel.id} value={cel.id}>
+                            {cel.serial} - {cel.marca} {cel.modelo}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                   {formData.celularId && (
@@ -1013,49 +1794,145 @@ export default function Asignacion() {
             )}
 
             {asignaciones.length > 0 && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left p-4 font-semibold text-gray-700">Nombre</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Usuario</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Puesto</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Equipo</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Serial</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Fecha</th>
-                      <th className="text-left p-4 font-semibold text-gray-700">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {asignaciones.map(asignacion => (
-                      <tr key={asignacion.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-                        <td className="p-4 text-gray-900 font-medium">{asignacion.nombre}</td>
-                        <td className="p-4 text-gray-600">{asignacion.usuario}</td>
-                        <td className="p-4 text-gray-600">{asignacion.puesto}</td>
-                        <td className="p-4 text-gray-600">{asignacion.marca} {asignacion.modelo}</td>
-                        <td className="p-4 text-gray-600 font-mono text-xs">{asignacion.sn}</td>
-                        <td className="p-4 text-gray-600">{asignacion.fechaAsignacion}</td>
-                        <td className="p-4">
-                          <div className="flex gap-2">
-                            <button onClick={() => handleEditar(asignacion)} className="btn-outline text-sm flex items-center justify-center gap-1">
-                              <Icon name="PencilOutline" size="sm" color="#0ea5e9" />
-                              Editar
-                            </button>
-                            <button onClick={() => handleDelete(asignacion.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center gap-1">
-                              <Icon name="TrashOutline" size="sm" color="#ef4444" />
-                            </button>
-                          </div>
-                        </td>
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 pt-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Serial</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: D6TK374"
+                      value={searchSerial}
+                      onChange={(e) => setSearchSerial(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Nombre</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Juan Pérez"
+                      value={searchNombre}
+                      onChange={(e) => setSearchNombre(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Usuario</label>
+                    <input
+                      type="text"
+                      placeholder="Ej: jperez"
+                      value={searchUsuario}
+                      onChange={(e) => setSearchUsuario(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Equipo</label>
+                    <select
+                      value={searchEquipo}
+                      onChange={(e) => setSearchEquipo(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">Todos los equipos</option>
+                      {[...new Set(asignaciones.map(a => a.tipoEquipo).filter(Boolean))].sort().map(tipo => (
+                        <option key={tipo} value={tipo}>{tipo}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Modelo</label>
+                    <select
+                      value={searchModelo}
+                      onChange={(e) => setSearchModelo(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">Todos los modelos</option>
+                      {[...new Set(asignaciones.map(a => a.modelo).filter(Boolean))].sort().map(modelo => (
+                        <option key={modelo} value={modelo}>{modelo}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Fecha</label>
+                    <input
+                      type="date"
+                      value={searchFecha}
+                      onChange={(e) => setSearchFecha(e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="text-left p-4 font-semibold text-gray-700">Nombre</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Usuario</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Puesto</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Equipo</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Serial</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Fecha</th>
+                        <th className="text-left p-4 font-semibold text-gray-700">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {asignaciones
+                        .filter(asignacion => {
+                          const matchSerial = !searchSerial || 
+                            asignacion.sn?.toLowerCase().includes(searchSerial.toLowerCase()) ||
+                            asignacion.snSecundario?.toLowerCase().includes(searchSerial.toLowerCase()) ||
+                            asignacion.serialCelular?.toLowerCase().includes(searchSerial.toLowerCase());
+                          const matchNombre = asignacion.nombre
+                            .toLowerCase()
+                            .includes(searchNombre.toLowerCase());
+                          const matchUsuario = asignacion.usuario
+                            .toLowerCase()
+                            .includes(searchUsuario.toLowerCase());
+                          const matchFecha = !searchFecha || asignacion.fechaAsignacion === searchFecha;
+                          const matchEquipo = !searchEquipo || asignacion.tipoEquipo === searchEquipo;
+                          const matchModelo = !searchModelo || asignacion.modelo === searchModelo;
+                          return matchSerial && matchNombre && matchUsuario && matchFecha && matchEquipo && matchModelo;
+                        })
+                        .map(asignacion => (
+                          <tr key={asignacion.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                            <td className="p-4 text-gray-900 font-medium">{asignacion.nombre}</td>
+                            <td className="p-4 text-gray-600">{asignacion.usuario}</td>
+                            <td className="p-4 text-gray-600">{asignacion.puesto}</td>
+                            <td className="p-4 text-gray-600">{asignacion.marca} {asignacion.modelo}</td>
+                            <td className="p-4 text-gray-600 font-mono text-xs">{asignacion.sn}</td>
+                            <td className="p-4 text-gray-600">{asignacion.fechaAsignacion}</td>
+                            <td className="p-4">
+                              <div className="flex gap-2">
+                                <button onClick={() => handleEditar(asignacion)} className="btn-outline text-sm flex items-center justify-center gap-1">
+                                  <Icon name="PencilOutline" size="sm" color="#0ea5e9" />
+                                  Editar
+                                </button>
+                                <button onClick={() => handleDelete(asignacion.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors text-sm font-medium flex items-center justify-center gap-1">
+                                  <Icon name="TrashOutline" size="sm" color="#ef4444" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Eliminar Asignación"
+        message="¿Estás seguro de que deseas eliminar esta asignación? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

@@ -299,16 +299,35 @@ Elige el documento que se ajuste a tu rol:
 
 ---
 
+## � DOCUMENTACIÓN DE IMPORTACIÓN EN LOTE
+
+### Nomenclaturas
+- **[GUIA_IMPORTACION_NOMENCLATURAS.md](GUIA_IMPORTACION_NOMENCLATURAS.md)** - Formato simple (1 por línea)
+- **[NOMENCLATURAS_A_IMPORTAR.txt](NOMENCLATURAS_A_IMPORTAR.txt)** - 30 ejemplos de NetBios names
+
+### Equipos  
+- **[GUIA_IMPORTACION_EQUIPOS.md](GUIA_IMPORTACION_EQUIPOS.md)** - Formato TAB-separated (7+ columnas)
+- **[EQUIPOS_A_IMPORTAR.txt](EQUIPOS_A_IMPORTAR.txt)** - 10 ejemplos de equipos
+
+### Asignaciones ⭐ NUEVO
+- **[GUIA_IMPORTACION_ASIGNACIONES.md](GUIA_IMPORTACION_ASIGNACIONES.md)** - Formato TAB-separated (18 columnas)
+- **[ASIGNACIONES_A_IMPORTAR.txt](ASIGNACIONES_A_IMPORTAR.txt)** - 5 ejemplos de asignaciones
+- **[INICIO_RAPIDO_ASIGNACIONES.md](INICIO_RAPIDO_ASIGNACIONES.md)** - Inicio en 3 pasos
+- **[CAMBIOS_REALIZADOS_ASIGNACIONES.md](CAMBIOS_REALIZADOS_ASIGNACIONES.md)** - Detalles técnicos implementados
+
+---
+
 ## 📊 ESTADÍSTICAS DE DOCUMENTACIÓN
 
 ```
-Total de archivos:         11
-Total de líneas:           10,000+
-Cobertura del proyecto:    95%+
+Total de archivos:         18
+Total de líneas:           12,000+
+Cobertura del proyecto:    98%+
 Idiomas:                   2 (Español, Inglés)
 Diagramas:                 10+
-Ejemplos de código:        50+
-Secciones:                 100+
+Ejemplos de código:        60+
+Secciones:                 120+
+Guías de importación:      3 módulos (Nomenclaturas, Equipos, Asignaciones)
 ```
 
 ---

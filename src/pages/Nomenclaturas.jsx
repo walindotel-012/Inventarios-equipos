@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
 
@@ -15,6 +16,10 @@ export default function Nomenclaturas() {
   const [editingId, setEditingId] = useState(null);
   const [netbiosName, setNetbiosName] = useState('');
   const [charCount, setCharCount] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importText, setImportText] = useState('');
 
   const MAX_CHARS = 14;
 
@@ -120,19 +125,88 @@ export default function Nomenclaturas() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar esta nomenclatura?')) {
-      try {
-        setLoading(true);
-        await deleteDoc(doc(db, 'nomenclaturas', id));
-        showToast('Nomenclatura eliminada', 'success');
-        loadNomenclaturas();
-      } catch (error) {
-        console.error('Error al eliminar:', error);
-        showToast('Error al eliminar nomenclatura', 'error');
-      } finally {
-        setLoading(false);
+  const handleDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      setLoading(true);
+      await deleteDoc(doc(db, 'nomenclaturas', deleteId));
+      showToast('Nomenclatura eliminada', 'success');
+      loadNomenclaturas();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      showToast('Error al eliminar nomenclatura', 'error');
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    }
+  };
+
+  const handleImportNomenclaturas = async (e) => {
+    e.preventDefault();
+
+    if (!importText.trim()) {
+      showToast('Por favor pega las nomenclaturas a importar', 'warning');
+      return;
+    }
+
+    // Parsear las nomenclaturas del texto
+    const nuevasNomenclaturas = importText
+      .split('\n')
+      .map(line => line.trim().toUpperCase())
+      .filter(line => line.length > 0);
+
+    if (nuevasNomenclaturas.length === 0) {
+      showToast('No hay nomenclaturas válidas para importar', 'warning');
+      return;
+    }
+
+    // Validar longitud
+    const invalidas = nuevasNomenclaturas.filter(nom => nom.length > MAX_CHARS);
+    if (invalidas.length > 0) {
+      showToast(`Existen ${invalidas.length} nomenclaturas con más de ${MAX_CHARS} caracteres`, 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let importadas = 0;
+      let duplicadas = 0;
+
+      for (const netbiosName of nuevasNomenclaturas) {
+        // Verificar si ya existe
+        if (nomenclaturas.some(n => n.netbiosName === netbiosName)) {
+          duplicadas++;
+          continue;
+        }
+
+        await addDoc(collection(db, 'nomenclaturas'), {
+          netbiosName,
+          registradoPor: currentUser.displayName || currentUser.email,
+          fechaRegistro: new Date(),
+        });
+        importadas++;
       }
+
+      let mensaje = `Se importaron ${importadas} nomenclatura${importadas !== 1 ? 's' : ''}`;
+      if (duplicadas > 0) {
+        mensaje += ` (${duplicadas} ya existían)`;
+      }
+      showToast(mensaje, 'success');
+
+      setImportText('');
+      setShowImportForm(false);
+      loadNomenclaturas();
+    } catch (error) {
+      console.error('Error al importar:', error);
+      showToast('Error al importar nomenclaturas', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,20 +219,100 @@ export default function Nomenclaturas() {
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Gestión de Colaboradores</h1>
             <p className="text-gray-600 text-base">Registra y administra los NetBios Names</p>
           </div>
-          {!showForm && (
-            <button
-              onClick={handleNueva}
-              className="btn-primary"
-            >
-              ➕ Nuevo Colaborador
-            </button>
+          {!showForm && !showImportForm && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportForm(true)}
+                className="btn-secondary"
+              >
+                📥 Importar en Lote
+              </button>
+              <button
+                onClick={handleNueva}
+                className="btn-primary"
+              >
+                ➕ Nuevo Colaborador
+              </button>
+            </div>
           )}
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {showForm ? (
+        {showImportForm ? (
+          // Vista con formulario de importación
+          <div className="card-saas-lg bg-white max-w-2xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl flex items-center justify-center text-lg">📥</div>
+              Importar Nomenclaturas en Lote
+            </h2>
+
+            <form onSubmit={handleImportNomenclaturas} className="space-y-6">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Nomenclaturas (una por línea)
+                </label>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Pega las nomenclaturas aquí, una por línea&#10;Ejemplo:&#10;AUVECRFOLABE01&#10;AUVEASFALABE01&#10;AUFIGELABE01"
+                  rows="12"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all font-mono"
+                  required
+                />
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="text-xs text-gray-600">
+                    Se importarán: {importText.split('\n').filter(l => l.trim().length > 0).length} nomenclatura(s)
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    Máximo {MAX_CHARS} caracteres por nomenclatura
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-2">
+                <Icon name="InformationCircleOutline" size="sm" color="#0284c7" />
+                <div>
+                  <p className="text-blue-900 text-sm font-semibold">Información de importación</p>
+                  <ul className="text-blue-800 text-xs mt-1 space-y-1">
+                    <li>• Las nomenclaturas duplicadas serán ignoradas</li>
+                    <li>• Se convertirán automáticamente a mayúsculas</li>
+                    <li>• Máximo {MAX_CHARS} caracteres por nomenclatura</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={loading || importText.trim().length === 0}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      Importar
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImportForm(false)}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : showForm ? (
           // Vista con formulario expandido
           <div className="card-saas-lg bg-white max-w-md mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
@@ -309,6 +463,15 @@ export default function Nomenclaturas() {
         )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Eliminar Nomenclatura"
+        message="¿Estás seguro de que deseas eliminar esta nomenclatura? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

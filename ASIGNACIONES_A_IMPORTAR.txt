@@ -1,0 +1,5 @@
+Bogotá	Oficina Central	Tecnología	Programador Sr	Juan Carlos Ruiz	jcruiz	ATM001	JCRUIZ-PC	Dell	OptiPlex 7090	9T4M2B2	512GB SSD	32GB	Intel i7-12700	Windows 11 Pro	Office 365	2024-01-15	Admin
+Medellín	Oficina Regional	Finanzas	Contador	María González	mgonzalez	ATM002	MGONZALEZ-PC	HP	EliteDesk 800	KL5N3C3	256GB SSD	16GB	Intel i5-12400	Windows 10 Pro	QuickBooks	2024-01-20	Admin
+Cali	Sucursal Sur	Ventas	Gerente Ventas	Carlos López	clopez	ATM003	CLOPEZ-PC	Lenovo	ThinkCentre M90	7K2J5D5	1TB HDD + 256GB SSD	16GB	AMD Ryzen 5 3600	Windows 11 Pro	Salesforce	2024-01-25	Admin
+Barranquilla	Oficina Caribe	Recursos Humanos	Especialista RRHH	Andrea Martínez	amartinez	ATM004	AMARTINEZ-PC	Dell	Precision 3560	M8P9Q1Q	512GB SSD	16GB	Intel i7-11800H	Windows 11 Pro	ADP	2024-02-01	Admin
+Bogotá	Oficina Central	Tecnología	Soporte Técnico	Roberto Fernández	rfernandez	ATM005	RFERNANDEZ-PC	HP	ProDesk 400	2N6L8R6	256GB SSD	8GB	Intel i5-10400	Windows 10 Pro	TeamViewer	2024-02-05	Admin

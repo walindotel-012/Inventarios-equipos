@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Icon from './Icon';
 
 export default function Navbar() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, userPermissions } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [photoURL, setPhotoURL] = useState(null);
   const location = useLocation();
@@ -29,16 +29,35 @@ export default function Navbar() {
 
   const isActive = (path) => location.pathname === path;
 
-  const navLinks = [
-    { path: '/', label: 'Dashboard', icon: 'GridOutline' },
-    { path: '/equipos', label: 'Equipos', icon: 'LaptopOutline' },
-    { path: '/celulares', label: 'Celulares', icon: 'PhonePortraitOutline' },
-    { path: '/equipos-disponibles', label: 'Disponibles', icon: 'CheckmarkCircleOutline' },
-    { path: '/nomenclaturas', label: 'Nomenclaturas', icon: 'PersonOutline' },
-    { path: '/asignacion', label: 'Asignaciones', icon: 'LinkOutline' },
-    { path: '/hoja-entrega', label: 'Entregas', icon: 'DocumentOutline' },
-    { path: '/descargo', label: 'Descargos', icon: 'ArrowRedoOutline' },
+  const allNavLinks = [
+    { path: '/', label: 'Dashboard', icon: 'GridOutline', moduloId: null },
+    { path: '/equipos', label: 'Equipos', icon: 'LaptopOutline', moduloId: 'equipos' },
+    { path: '/celulares', label: 'Celulares', icon: 'PhonePortraitOutline', moduloId: 'celulares' },
+    { path: '/equipos-disponibles', label: 'Disponibles', icon: 'CheckmarkCircleOutline', moduloId: 'equipos-disponibles' },
+    { path: '/nomenclaturas', label: 'Nomenclaturas', icon: 'PersonOutline', moduloId: 'nomenclaturas' },
+    { path: '/asignacion', label: 'Asignaciones', icon: 'LinkOutline', moduloId: 'asignacion' },
+    { path: '/hoja-entrega', label: 'Entregas', icon: 'DocumentOutline', moduloId: 'hoja-entrega' },
+    { path: '/descargo', label: 'Descargos', icon: 'ArrowRedoOutline', moduloId: 'descargo' },
+    { path: '/bitacora', label: 'Bitácora', icon: 'DocumentTextOutline', moduloId: 'bitacora', adminOnly: true },
   ];
+
+  // Filtrar módulos según permisos del usuario
+  const getVisibleLinks = () => {
+    // Verificar si es admin (por permisos en BD o email específico)
+    const isAdmin = userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com';
+    
+    if (isAdmin) {
+      return allNavLinks; // Los admins ven todos los módulos
+    }
+
+    // Los usuarios no-admin solo ven los módulos permitidos
+    const modulosPermitidos = userPermissions?.modulos || [];
+    return allNavLinks.filter(link => 
+      !link.adminOnly && (link.moduloId === null || modulosPermitidos.includes(link.moduloId))
+    );
+  };
+
+  const navLinks = getVisibleLinks();
 
   return (
     <>
@@ -151,6 +170,32 @@ export default function Navbar() {
 
               {/* Divider */}
               <div className="h-px bg-gray-100 my-3" />
+
+              {/* Admin Panel */}
+              {(userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com') && (
+                <div className="mb-4">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">Administración</p>
+                  <Link
+                    to="/admin-permisos"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive('/admin-permisos')
+                        ? 'bg-red-50 text-red-600 border-l-2 border-red-600 pl-2'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <Icon 
+                      name="SettingsOutline"
+                      size="sm"
+                      color={isActive('/admin-permisos') ? '#dc2626' : 'neutral'}
+                    />
+                    <span>Gestión de Permisos</span>
+                  </Link>
+                  <div className="h-px bg-gray-100 my-3" />
+                </div>
+              )}
+
+              {/* Divider */}
 
               {/* User Section */}
               {currentUser && (

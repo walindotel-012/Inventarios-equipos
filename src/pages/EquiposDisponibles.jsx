@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
 import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
+import * as XLSX from 'xlsx';
 
 const TIPOS_DISPOSITIVOS = [
   'Monitor',
@@ -82,22 +83,16 @@ export default function EquiposDisponibles() {
   };
 
   // Crear un set de códigos/seriales asignados para búsqueda rápida y eficiente
-  const codigosAsignados = new Set(asignaciones.map(a => a.codActivoFijo).filter(Boolean));
-  const serialesAsignados = new Set(asignaciones.map(a => a.sn).filter(Boolean));
-  const serialesCelularesAsignados = new Set(asignaciones.map(a => a.serialCelular).filter(Boolean));
-
-  // Obtener equipos disponibles (no asignados)
+  // Obtener equipos disponibles: usar el estado del equipo como fuente de verdad
   const equiposDisponibles = equipos.filter(equipo => {
-    // Un equipo es disponible si su código Y serial NO están en los asignados
-    const estaAsignado = codigosAsignados.has(equipo.codActivoFijo) && serialesAsignados.has(equipo.sn);
-    return !estaAsignado;
+    // Un equipo es disponible si NO está asignado según su estado en la tabla de equipos
+    return !equipo.asignado || equipo.estado === 'disponible';
   });
 
-  // Obtener celulares disponibles (no asignados)
+  // Obtener celulares disponibles: usar el estado del celular como fuente de verdad
   const celularesDisponibles = celulares.filter(celular => {
-    // Un celular es disponible si su serial NO está en los asignados
-    const estaAsignado = serialesCelularesAsignados.has(celular.serial);
-    return !estaAsignado;
+    // Un celular es disponible si NO está asignado según su estado en la tabla de celulares
+    return !celular.asignado || celular.estado === 'disponible';
   });
 
   // Filtrar según tipo seleccionado y tipo específico
@@ -132,6 +127,13 @@ export default function EquiposDisponibles() {
       codigo.toLowerCase().includes(termLower) ||
       serial.toLowerCase().includes(termLower)
     );
+  });
+
+  // Ordenar por código de activo fijo en orden ascendente
+  dataFiltrada = dataFiltrada.sort((a, b) => {
+    const codigoA = (a.codActivoFijo || a.serial || '').toUpperCase();
+    const codigoB = (b.codActivoFijo || b.serial || '').toUpperCase();
+    return codigoA.localeCompare(codigoB, 'es', { numeric: true });
   });
 
   // Columnas para equipos
@@ -200,6 +202,60 @@ export default function EquiposDisponibles() {
 
   const opcionesTipoEspecifico = getOpcionesTipoEspecifico();
 
+  const handleExportarExcel = () => {
+    try {
+      // Preparar datos para exportar
+      const datosExportar = dataFiltrada.map(item => {
+        if (item.tipo === 'equipo') {
+          return {
+            'Tipo': 'Equipo',
+            'Código de Activo': item.codActivoFijo || '-',
+            'Tipo de Equipo': item.tipoEquipo || '-',
+            'Condición': item.condicion || '-',
+            'Marca': item.marca || '-',
+            'Modelo': item.modelo || '-',
+            'Serial': item.sn || '-',
+            'Disco': item.disco || '-',
+            'Memoria': item.memoria || '-',
+            'Procesador': item.procesador || '-',
+            'SO': item.so || '-',
+            'Licencia': item.licencia || '-',
+          };
+        } else {
+          return {
+            'Tipo': 'Celular',
+            'Marca': item.marca || '-',
+            'Modelo': item.modelo || '-',
+            'Condición': item.condicion || '-',
+            'Restricción': item.restriccion || '-',
+            'Serial': item.serial || '-',
+            'IMEI': item.imei || '-',
+            'Número': item.numero || '-',
+            'Plan': item.plan || '-',
+          };
+        }
+      });
+
+      // Crear libro de trabajo
+      const ws = XLSX.utils.json_to_sheet(datosExportar);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Equipos Disponibles');
+
+      // Ajustar ancho de columnas
+      const maxWidth = 25;
+      ws['!cols'] = Array(Object.keys(datosExportar[0] || {}).length).fill({ wch: maxWidth });
+
+      // Descargar archivo
+      const fecha = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Equipos_Disponibles_${fecha}.xlsx`);
+
+      showToast('Excel exportado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      showToast('Error al exportar a Excel', 'error');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -264,6 +320,19 @@ export default function EquiposDisponibles() {
             />
           </div>
         </div>
+
+        {/* Botón de Exportar */}
+        {dataFiltrada.length > 0 && (
+          <div className="mb-6 flex justify-end">
+            <button
+              onClick={handleExportarExcel}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm"
+            >
+              <Icon name="DownloadOutline" size="sm" color="white" />
+              Exportar a Excel
+            </button>
+          </div>
+        )}
 
         {/* Resumen de Disponibilidad */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">

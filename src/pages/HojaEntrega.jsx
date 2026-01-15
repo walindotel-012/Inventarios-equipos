@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Icon from '../components/Icon';
@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export default function HojaEntrega() {
-  const { currentUser } = useAuth();
+  const { currentUser, userPermissions } = useAuth();
   const [asignaciones, setAsignaciones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,25 +16,29 @@ export default function HojaEntrega() {
   const printRef = useRef();
 
   useEffect(() => {
-    loadAsignaciones();
-  }, []);
-
-  const loadAsignaciones = async () => {
-    try {
-      setLoading(true);
-      const querySnapshot = await getDocs(collection(db, 'asignaciones'));
-      const asignacionesList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setAsignaciones(asignacionesList);
-    } catch (error) {
-      console.error('Error cargando asignaciones:', error);
-      alert('Error al cargar asignaciones');
-    } finally {
-      setLoading(false);
-    }
-  };
+    // Usar listener en tiempo real en lugar de getDocs
+    const unsubscribe = onSnapshot(collection(db, 'asignaciones'), (snapshot) => {
+      try {
+        const asignacionesList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAsignaciones(asignacionesList);
+        
+        // Si hay una asignación seleccionada, actualizarla con los datos más nuevos
+        if (selectedAsignacion) {
+          const updatedAsignacion = asignacionesList.find(a => a.id === selectedAsignacion.id);
+          if (updatedAsignacion) {
+            setSelectedAsignacion(updatedAsignacion);
+          }
+        }
+      } catch (error) {
+        console.error('Error en listener de asignaciones:', error);
+      }
+    });
+    
+    return () => unsubscribe(); // Limpiar listener al desmontar
+  }, [selectedAsignacion?.id]);
 
   const filteredAsignaciones = asignaciones.filter(a =>
     (a.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -42,8 +46,21 @@ export default function HojaEntrega() {
   );
 
   const handleSelectAsignacion = (asignacion) => {
-    setSelectedAsignacion(asignacion);
+    // Buscar la asignación actualizada en el array de asignaciones completo
+    // para asegurar que tenemos los datos más recientes
+    const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
+    setSelectedAsignacion(asignacionActualizada);
   };
+
+  // Efecto para mantener selectedAsignacion actualizada con los cambios en asignaciones
+  useEffect(() => {
+    if (selectedAsignacion) {
+      const asignacionActualizada = asignaciones.find(a => a.id === selectedAsignacion.id);
+      if (asignacionActualizada) {
+        setSelectedAsignacion(asignacionActualizada);
+      }
+    }
+  }, [asignaciones]);
 
   /**
    * Genera PDF para A4 con márgenes personalizados - exactamente como la vista previa
@@ -481,7 +498,7 @@ export default function HojaEntrega() {
                       fontSize: '9pt',
                       verticalAlign: 'middle'
                     }}>
-                      Tecnología
+                      {userPermissions?.departamento || '___________________________________________'}
                     </td>
                   </tr>
                 </tbody>
@@ -590,63 +607,226 @@ export default function HojaEntrega() {
                 Descripción del Equipo
               </div>
 
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', borderTop: 'none', marginBottom: '20px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #000', borderTop: 'none', marginBottom: '20px', tableLayout: 'fixed' }}>
                 <tbody style={{ fontSize: '8.5px' }}>
-                  <tr>
-                    <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0 }}>
-                      {selectedAsignacion.sn ? (
-                        <table style={{ width: '100%', borderCollapse: 'collapse', padding: '2px' }}>
-                          <tbody style={{ fontSize: '12px' }}>
-                            <tr>
-                              <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.condicion === 'Nuevo' ? '☑ Nuevo' : '☐ Nuevo'} &nbsp; {selectedAsignacion.condicion === 'Usado' ? '☑ Usado' : '☐ Usado'}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Tipo de Equipo:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.tipoEquipo || 'No especificado'}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Serial:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.sn}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Marca:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.marca}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Modelo:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.modelo}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Especificaciones:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(8, 8, 8, 1)' }}>{selectedAsignacion.especificaciones || `${selectedAsignacion.disco}, ${selectedAsignacion.memoria}, ${selectedAsignacion.procesador}`.replace(/undefined/g, '').trim()}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Código Activo:</td>
-                              <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.codActivoFijo}</td>
-                            </tr>
-                            <tr>
-                              <td style={{ padding: '2px', fontWeight: 700 }}>Fecha de Entrega:</td>
-                              <td style={{ padding: '2px' }}>{selectedAsignacion.fechaAsignacion}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      ) : (
-                        <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
-                      )}
-                    </td>
-
-                    <td style={{ verticalAlign: 'top', padding: '0px' }}>
-                      {(selectedAsignacion.serialCelular || selectedAsignacion.snSecundario) ? (
-                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                          <tbody style={{ fontSize: '12px' }}>
-                            {selectedAsignacion.serialCelular ? (
-                              <>
+                  <tr style={{ display: 'table-row' }}>
+                    {/* LÓGICA: Determinar qué equipos mostrar */}
+                    {selectedAsignacion.sn && selectedAsignacion.snSecundario ? (
+                      // Caso 1: Equipo Primario + Equipo Secundario - mostrar ambos
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', padding: '2px' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.condicion}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.tipoEquipo || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.sn}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.marca}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.modelo}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Especificaciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(8, 8, 8, 1)' }}>{selectedAsignacion.especificaciones || `${selectedAsignacion.disco}, ${selectedAsignacion.memoria}, ${selectedAsignacion.procesador}`.replace(/undefined/g, '').trim()}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Código Activo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.codActivoFijo}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Fecha de Entrega:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.fechaAsignacion}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ width: '60%', padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
+                                  {selectedAsignacion.condicionSecundario}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoSecundario || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.snSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Especificaciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{`${selectedAsignacion.discoSecundario || ''}, ${selectedAsignacion.memoriaSecundario || ''}, ${selectedAsignacion.procesadorSecundario || ''}`.replace(/undefined|, , |,  |^,|,$/g, '').trim() || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Código Activo:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.codActivoFijoSecundario}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </>
+                    ) : selectedAsignacion.snSecundario && selectedAsignacion.serialCelular ? (
+                      // Caso 2: Equipo Secundario + Celular - mostrar solo estos dos
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', padding: '2px' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
+                                  {selectedAsignacion.condicionSecundario}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoSecundario || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.snSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Especificaciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{`${selectedAsignacion.discoSecundario || ''}, ${selectedAsignacion.memoriaSecundario || ''}, ${selectedAsignacion.procesadorSecundario || ''}`.replace(/undefined|, , |,  |^,|,$/g, '').trim() || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Código Activo:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.codActivoFijoSecundario}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ width: '60%', padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
+                                  {selectedAsignacion.condicionCelular}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoCelular || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Restricción:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.restriccionCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.serialCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>IMEI:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.imeiCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Número:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.numeroCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Plan:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.planCelular}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </>
+                    ) : selectedAsignacion.sn ? (
+                      // Caso 3: Solo Equipo Primario
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', padding: '2px' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.condicion}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.tipoEquipo || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.sn}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.marca}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.modelo}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Especificaciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(8, 8, 8, 1)' }}>{selectedAsignacion.especificaciones || `${selectedAsignacion.disco}, ${selectedAsignacion.memoria}, ${selectedAsignacion.procesador}`.replace(/undefined/g, '').trim()}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Código Activo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>{selectedAsignacion.codActivoFijo}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Fecha de Entrega:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.fechaAsignacion}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          {selectedAsignacion.serialCelular ? (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <tbody style={{ fontSize: '12px' }}>
                                 <tr>
                                   <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
                                   <td style={{ width: '60%', padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
-                                    {selectedAsignacion.condicionCelular === 'Nuevo' ? '☑ Nuevo' : '☐ Nuevo'} &nbsp; {selectedAsignacion.condicionCelular === 'Usado' ? '☑ Usado' : '☐ Usado'}
+                                    {selectedAsignacion.condicionCelular}
                                   </td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoCelular || 'No especificado'}</td>
                                 </tr>
                                 <tr>
                                   <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Restricción:</td>
@@ -673,54 +853,166 @@ export default function HojaEntrega() {
                                   <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.numeroCelular}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Plan:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.planCelular}</td>
+                                  <td style={{ padding: '2px', fontWeight: 700 }}>Plan:</td>
+                                  <td style={{ padding: '2px' }}>{selectedAsignacion.planCelular}</td>
                                 </tr>
-                                <tr>
-                                  <td style={{ padding: '2px', fontWeight: 700 }}>Fecha de Entrega:</td>
-                                  <td style={{ padding: '2px' }}>{selectedAsignacion.fechaAsignacionCelular}</td>
-                                </tr>
-                              </>
-                            ) : (
-                              <>
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
+                          )}
+                        </td>
+                      </>
+                    ) : selectedAsignacion.snSecundario ? (
+                      // Caso 4: Solo Equipo Secundario
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', padding: '2px' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
+                                  {selectedAsignacion.condicionSecundario}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoSecundario || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.snSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloSecundario}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Especificaciones:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{`${selectedAsignacion.discoSecundario || ''}, ${selectedAsignacion.memoriaSecundario || ''}, ${selectedAsignacion.procesadorSecundario || ''}`.replace(/undefined|, , |,  |^,|,$/g, '').trim() || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Código Activo:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.codActivoFijoSecundario}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          {selectedAsignacion.serialCelular ? (
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                              <tbody style={{ fontSize: '12px' }}>
                                 <tr>
                                   <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
                                   <td style={{ width: '60%', padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
-                                    {selectedAsignacion.condicionSecundario === 'Nuevo' ? '☑ Nuevo' : '☐ Nuevo'} &nbsp; {selectedAsignacion.condicionSecundario === 'Usado' ? '☑ Usado' : '☐ Usado'}
+                                    {selectedAsignacion.condicionCelular}
                                   </td>
                                 </tr>
                                 <tr>
                                   <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoSecundario || 'No especificado'}</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoCelular || 'No especificado'}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Restricción:</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.restriccionCelular}</td>
                                 </tr>
                                 <tr>
                                   <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.snSecundario}</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.serialCelular}</td>
                                 </tr>
                                 <tr>
                                   <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaSecundario}</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaCelular}</td>
                                 </tr>
                                 <tr>
                                   <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloSecundario}</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloCelular}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Especificaciones:</td>
-                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{`${selectedAsignacion.discoSecundario || ''}, ${selectedAsignacion.memoriaSecundario || ''}, ${selectedAsignacion.procesadorSecundario || ''}`.replace(/undefined|, , |,  |^,|,$/g, '').trim() || 'No especificado'}</td>
+                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>IMEI:</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.imeiCelular}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{ padding: '2px', fontWeight: 700 }}>Código Activo:</td>
-                                  <td style={{ padding: '2px' }}>{selectedAsignacion.codActivoFijoSecundario}</td>
+                                  <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Número:</td>
+                                  <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.numeroCelular}</td>
                                 </tr>
-                              </>
-                            )}
-                          </tbody>
-                        </table>
-                      ) : (
-                        <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
-                      )}
-                    </td>
+                                <tr>
+                                  <td style={{ padding: '2px', fontWeight: 700 }}>Plan:</td>
+                                  <td style={{ padding: '2px' }}>{selectedAsignacion.planCelular}</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
+                          )}
+                        </td>
+                      </>
+                    ) : selectedAsignacion.serialCelular ? (
+                      // Caso 5: Solo Celular
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <tbody style={{ fontSize: '12px' }}>
+                              <tr>
+                                <td style={{ width: '40%', padding: '2px', fontWeight: 700, borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>Condiciones:</td>
+                                <td style={{ width: '60%', padding: '2px', borderBottom: '1px solid rgba(0, 0, 0, 1)' }}>
+                                  {selectedAsignacion.condicionCelular}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Tipo de Equipo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.tipoEquipoCelular || 'No especificado'}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Restricción:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.restriccionCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Serial:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.serialCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Marca:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.marcaCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Modelo:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.modeloCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>IMEI:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.imeiCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700, borderBottom: '1px solid #000000ff' }}>Número:</td>
+                                <td style={{ padding: '2px', borderBottom: '1px solid #000000ff' }}>{selectedAsignacion.numeroCelular}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ padding: '2px', fontWeight: 700 }}>Plan:</td>
+                                <td style={{ padding: '2px' }}>{selectedAsignacion.planCelular}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </td>
+                      </>
+                    ) : (
+                      // Caso 6: Sin datos
+                      <>
+                        <td style={{ borderRight: '1px solid #000', verticalAlign: 'top', padding: 0, width: '50%', height: '100%' }}>
+                          <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
+                        </td>
+                        <td style={{ verticalAlign: 'top', padding: '0px', width: '50%', height: '100%' }}>
+                          <div style={{ padding: '2px', textAlign: 'center', color: '#999' }}>Sin datos</div>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 </tbody>
               </table>

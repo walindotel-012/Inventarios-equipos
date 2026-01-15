@@ -6,18 +6,21 @@ import {
   doc,
   deleteDoc,
   addDoc,
+  writeBatch,
+  onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useToastManager } from '../hooks/useToastManager';
 import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Icon from '../components/Icon';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx';
 
 export default function Descargo() {
-  const { currentUser } = useAuth();
+  const { currentUser, userPermissions } = useAuth();
   const { toast, showToast, hideToast } = useToastManager();
   const [asignaciones, setAsignaciones] = useState([]);
   const [descargos, setDescargos] = useState([]);
@@ -27,40 +30,70 @@ export default function Descargo() {
   const [selectedAsignacion, setSelectedAsignacion] = useState(null);
   const [showPDFModal, setShowPDFModal] = useState(false);
   const [validatedAsignacion, setValidatedAsignacion] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
   const printRef = useRef();
   const reportPrintRef = useRef();
 
   useEffect(() => {
-    loadData();
-  }, []);
+    // Usar listeners en tiempo real en lugar de getDocs una sola vez
+    const unsubscribeAsignaciones = onSnapshot(collection(db, 'asignaciones'), (snapshot) => {
+      try {
+        const asignacionesList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        console.log('📊 Asignaciones actualizadas en tiempo real:', asignacionesList.length);
+        setAsignaciones(asignacionesList);
+        
+        // Si hay una asignación seleccionada, actualizarla con los datos más nuevos
+        if (selectedAsignacion) {
+          const updatedAsignacion = asignacionesList.find(a => a.id === selectedAsignacion.id);
+          if (updatedAsignacion) {
+            setSelectedAsignacion(updatedAsignacion);
+          }
+        }
+      } catch (error) {
+        console.error('Error en listener de asignaciones:', error);
+      }
+    });
+    
+    const unsubscribeDescargos = onSnapshot(collection(db, 'descargos'), (snapshot) => {
+      try {
+        let descargosList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Eliminar duplicados por ID
+        descargosList = descargosList.filter((d, index, arr) => 
+          arr.findIndex(item => item.id === d.id) === index
+        );
+        
+        console.log('📋 Descargos actualizados en tiempo real:', descargosList.length);
+        setDescargos(descargosList);
+      } catch (error) {
+        console.error('Error en listener de descargos:', error);
+      }
+    });
+    
+    // Limpiar listeners al desmontar
+    return () => {
+      unsubscribeAsignaciones();
+      unsubscribeDescargos();
+    };
+  }, [selectedAsignacion?.id]);
 
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Cargar asignaciones activas
-      const asignacionesSnapshot = await getDocs(collection(db, 'asignaciones'));
-      const asignacionesList = asignacionesSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      // Cargar descargos de la colección "descargos"
-      const descargosSnapshot = await getDocs(collection(db, 'descargos'));
-      const descargosList = descargosSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      setAsignaciones(asignacionesList);
-      setDescargos(descargosList);
-    } catch (error) {
-      console.error('Error cargando datos:', error);
-      showToast('Error al cargar datos', 'error');
-    } finally {
-      setLoading(false);
+  // Efecto para mantener selectedAsignacion actualizada con los cambios en asignaciones
+  useEffect(() => {
+    if (selectedAsignacion) {
+      const asignacionActualizada = asignaciones.find(a => a.id === selectedAsignacion.id);
+      if (asignacionActualizada) {
+        setSelectedAsignacion(asignacionActualizada);
+      }
     }
-  };
+  }, [asignaciones]);
 
   const filteredAsignaciones = asignaciones.filter(a =>
     (a.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -145,7 +178,6 @@ export default function Descargo() {
       
       // Actualizar datos y deseleccionar
       setSelectedAsignacion(null);
-      loadData();
 
     } catch (error) {
       console.error('Error al validar descargo:', error);
@@ -155,18 +187,102 @@ export default function Descargo() {
     }
   };
 
-  const handleDelete = async (descargoId) => {
-    if (!window.confirm('¿Está seguro de que desea eliminar este registro de descargo?')) {
-      return;
-    }
+  const handleDelete = (descargoId) => {
+    setDeleteId(descargoId);
+    setShowDeleteConfirm(true);
+  };
 
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
     try {
-      await deleteDoc(doc(db, 'descargos', descargoId));
+      await deleteDoc(doc(db, 'descargos', deleteId));
       showToast('Registro eliminado correctamente', 'success');
       loadData();
     } catch (error) {
       console.error('Error eliminando registro:', error);
       showToast('Error al eliminar registro', 'error');
+    } finally {
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+    }
+  };
+
+  const handleClearHistory = () => {
+    setShowClearHistoryConfirm(true);
+  };
+
+  const handleConfirmClearHistory = async () => {
+    try {
+      setLoading(true);
+      console.log('🔍 Iniciando limpieza de historial...', descargos.length, 'registros');
+      
+      // Deduplicar registros
+      const uniqueDescargos = descargos.filter((d, index, arr) => 
+        arr.findIndex(item => item.id === d.id) === index
+      );
+      
+      console.log('📋 Registros únicos encontrados:', uniqueDescargos.length);
+      
+      if (uniqueDescargos.length === 0) {
+        showToast('No hay registros para eliminar', 'info');
+        setShowClearHistoryConfirm(false);
+        return;
+      }
+      
+      // Usar batch para eliminar todos los registros
+      const batch = writeBatch(db);
+      
+      for (const descargo of uniqueDescargos) {
+        const docRef = doc(db, 'descargos', descargo.id);
+        batch.delete(docRef);
+        console.log(`⏳ Añadiendo a batch para eliminar: ${descargo.id}`);
+      }
+      
+      console.log('📤 Commitiendo batch...');
+      
+      try {
+        await batch.commit();
+        console.log(`✅ ${uniqueDescargos.length} registros eliminados del batch`);
+      } catch (batchError) {
+        console.error('❌ ERROR en batch.commit():', batchError);
+        console.error('Código:', batchError.code);
+        console.error('Mensaje:', batchError.message);
+        
+        if (batchError.code === 'permission-denied') {
+          showToast('❌ PERMISOS INSUFICIENTES: Las reglas de Firestore no permiten eliminar. Contacta al administrador.', 'error');
+          return;
+        }
+        throw batchError;
+      }
+      
+      // Esperar a que Firebase procese
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('🔄 Recargando datos desde Firebase...');
+      const descargosSnapshot = await getDocs(collection(db, 'descargos'));
+      const descargosList = descargosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Deduplicar por si acaso
+      const deduplicatedList = descargosList.filter((d, index, arr) => 
+        arr.findIndex(item => item.id === d.id) === index
+      );
+      
+      console.log('📦 Datos recargados:', deduplicatedList.length, 'registros restantes');
+      
+      setDescargos(deduplicatedList);
+      showToast(`✅ ${uniqueDescargos.length} registro(s) eliminado(s) correctamente`, 'success');
+      
+    } catch (error) {
+      console.error('❌ Error al limpiar historial:', error);
+      console.error('Código de error:', error.code);
+      console.error('Mensaje:', error.message);
+      showToast('Error al limpiar historial: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+      setShowClearHistoryConfirm(false);
     }
   };
 
@@ -362,6 +478,9 @@ export default function Descargo() {
   const handlePrint = () => {
     if (!printRef.current) return;
 
+    // Crear una copia del contenido sin transformaciones
+    const originalContent = printRef.current.innerHTML;
+    
     const iframe = document.createElement('iframe');
     iframe.style.display = 'none';
     iframe.style.position = 'fixed';
@@ -371,37 +490,67 @@ export default function Descargo() {
 
     const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
     iframeDoc.write(`
+      <!DOCTYPE html>
       <html>
         <head>
+          <meta charset="UTF-8">
           <title>Descargo de Equipo</title>
           <style>
             @page {
-              margin-top: 0in;
-              margin-left: 0in;
-              margin-right: 0in;
-              margin-bottom: 0;
+              margin: 0 !important;
+              padding: 0 !important;
               size: letter portrait;
+              orphans: 0;
+              widows: 0;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              width: 100% !important;
+              height: auto !important;
+              overflow: visible !important;
             }
             * {
               margin: 0;
               padding: 0;
-              font-family: 'Kodchasan', sans-serif !important;
+              box-sizing: border-box;
             }
             body { 
-              font-family: 'Kodchasan', sans-serif !important; 
-              background: #fff; 
-              color: #000;
+              font-family: Arial, sans-serif !important; 
+              background: #fff !important; 
+              color: #000 !important;
+              line-height: 1.6;
+            }
+            div[style*="width: 210mm"] {
+              width: 8.5in !important;
+              height: auto !important;
+              margin: 0 !important;
+              padding: 14.4mm 22mm 10mm 22mm !important;
+              page-break-after: avoid !important;
+              page-break-inside: avoid !important;
+              overflow: visible !important;
             }
             img {
               max-width: 100%;
               height: auto;
               display: block;
+              page-break-inside: avoid;
             }
-            table { border-collapse: collapse; width: 100%; }
+            table { 
+              border-collapse: collapse; 
+              width: 100%;
+              page-break-inside: avoid;
+            }
+            td, th {
+              page-break-inside: avoid;
+            }
+            .page-break {
+              page-break-after: always;
+            }
           </style>
         </head>
         <body>
-          ${printRef.current.innerHTML}
+          ${originalContent}
         </body>
       </html>
     `);
@@ -412,13 +561,15 @@ export default function Descargo() {
     let loadedImages = 0;
     
     const doPrint = () => {
-      iframe.contentWindow.print();
-      // Limpiar después de que se cierre el diálogo de impresión
       setTimeout(() => {
-        try {
-          document.body.removeChild(iframe);
-        } catch (e) {}
-      }, 100);
+        iframe.contentWindow.print();
+        // Limpiar después de que se cierre el diálogo de impresión
+        setTimeout(() => {
+          try {
+            document.body.removeChild(iframe);
+          } catch (e) {}
+        }, 500);
+      }, 300);
     };
     
     if (images.length === 0) {
@@ -442,17 +593,10 @@ export default function Descargo() {
         }
       });
       
-      // Verificar si ya están todas cargadas
+      // Si todas las imágenes ya están cargadas
       if (loadedImages === images.length) {
         doPrint();
       }
-      
-      // Fallback: si las imágenes no cargan después de 3 segundos, imprimir de todas formas
-      setTimeout(() => {
-        if (loadedImages < images.length) {
-          doPrint();
-        }
-      }, 3000);
     }
   };
 
@@ -570,7 +714,7 @@ export default function Descargo() {
 
   const generateReportExcel = () => {
     try {
-      const dataExcel = descargos.map(d => ({
+      const dataExcel = filteredDescargos.map(d => ({
         'Nombre Usuario': d.nombre,
         'Usuario': d.usuario,
         'Tipo Equipo': d.codActivoFijo ? 'Equipo' : 'Celular',
@@ -583,6 +727,11 @@ export default function Descargo() {
         'Responsable Descargo': d.usuarioDescargo,
         'Observaciones': d.observacionesDescargo || 'N/A',
       }));
+
+      if (dataExcel.length === 0) {
+        showToast('No hay descargas que coincidan con los filtros para exportar', 'warning');
+        return;
+      }
 
       const ws = XLSX.utils.json_to_sheet(dataExcel);
       const wb = XLSX.utils.book_new();
@@ -684,7 +833,9 @@ export default function Descargo() {
                         <button
                           key={asignacion.id}
                           onClick={() => {
-                            setSelectedAsignacion(asignacion);
+                            // Buscar la asignación actualizada en el array completo
+                            const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
+                            setSelectedAsignacion(asignacionActualizada);
                             setSearchTerm('');
                           }}
                           className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
@@ -700,55 +851,10 @@ export default function Descargo() {
                       ))
                     )}
                   </div>
-
-                  {/* Botones de acción */}
-                  {selectedAsignacion && (
-                    <div className="mt-6 space-y-3">
-                    
-                      <button
-                        onClick={() => handleSaveEdit(selectedAsignacion)}
-                        disabled={loading}
-                        className="w-full px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {loading ? (
-                          <>
-                            <Icon name="HourglassOutline" size="sm" color="white" />
-                            Validando...
-                          </>
-                        ) : (
-                          <>
-                            <Icon name="CheckmarkDoneOutline" size="sm" color="white" />
-                            Validar Descargo
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={generatePDF}
-                        className="w-full px-4 py-3 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Icon name="CloudDownloadOutline" size="sm" color="white" />
-                        Descargar PDF
-                      </button>
-                      <button
-                        onClick={handlePrint}
-                        className="w-full px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Icon name="PrintOutline" size="sm" color="white" />
-                        Imprimir
-                      </button>
-                      <button
-                        onClick={() => setSelectedAsignacion(null)}
-                        className="w-full px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Icon name="CloseOutline" size="sm" color="#374151" />
-                        Cancelar
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Vista previa del PDF */}
+              {/* Vista previa del PDF y Botones de acción */}
               <div className="lg:col-span-2">
                 {!selectedAsignacion ? (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center justify-center min-h-96">
@@ -760,10 +866,59 @@ export default function Descargo() {
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div className="bg-gray-50 rounded-lg p-4 max-h-screen overflow-y-auto border border-gray-200" style={{ aspectRatio: '210/297' }}>
-                      <div ref={printRef} style={{ transform: 'scale(0.75)', transformOrigin: 'top left', width: '100%' }}>
-                        <DescargoPDFTemplate asignacion={selectedAsignacion} />
+                  <div className="space-y-4">
+                    {/* Header con nombre y botones de acción */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                          <h3 className="text-2xl font-bold text-gray-900">{selectedAsignacion.nombre}</h3>
+                          <p className="text-sm text-gray-600 mt-1">Usuario: {selectedAsignacion.usuario}</p>
+                          <p className="text-sm text-gray-600">{selectedAsignacion.codActivoFijo || 'Sin equipo'}</p>
+                        </div>
+                        
+                        {/* Botones de acción en fila */}
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={() => handleSaveEdit(selectedAsignacion)}
+                            disabled={loading}
+                            className="px-4 py-3 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+                          >
+                            {loading ? (
+                              <>
+                                <Icon name="HourglassOutline" size="sm" color="white" />
+                                Validando...
+                              </>
+                            ) : (
+                              <>
+                                <Icon name="CheckmarkDoneOutline" size="sm" color="white" />
+                                Validar
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={handlePrint}
+                            className="px-4 py-3 bg-purple-500 text-white rounded-lg font-semibold hover:bg-purple-600 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+                          >
+                            <Icon name="PrintOutline" size="sm" color="white" />
+                            Imprimir
+                          </button>
+                          <button
+                            onClick={() => setSelectedAsignacion(null)}
+                            className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+                          >
+                            <Icon name="CloseOutline" size="sm" color="#374151" />
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Vista previa del PDF */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                      <div className="bg-gray-50 rounded-lg p-4 max-h-screen overflow-y-auto border border-gray-200" style={{ height: '600px' }}>
+                        <div ref={printRef} style={{ width: '100%' }}>
+                          <DescargoPDFTemplate asignacion={selectedAsignacion} userPermissions={userPermissions} />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -778,7 +933,7 @@ export default function Descargo() {
                 <div className="flex gap-3">
                   <button
                     onClick={generateReportPDF}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all text-sm flex items-center justify-center gap-2"
+                    className="hidden px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-all text-sm items-center justify-center gap-2"
                   >
                     <Icon name="DocumentOutline" size="sm" color="white" />
                     Descargar PDF
@@ -789,6 +944,14 @@ export default function Descargo() {
                   >
                     <Icon name="BarChartOutline" size="sm" color="white" />
                     Descargar Excel
+                  </button>
+                  <button
+                    onClick={handleClearHistory}
+                    disabled={descargos.length === 0 || loading}
+                    className="hidden px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all text-sm items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Icon name="TrashOutline" size="sm" color="white" />
+                    Limpiar Historial
                   </button>
                 </div>
               </div>
@@ -831,8 +994,8 @@ export default function Descargo() {
                         <td colSpan="10" className="text-center py-4 text-gray-500">No hay equipos descargados</td>
                       </tr>
                     ) : (
-                      filteredDescargos.map((descargo) => (
-                        <tr key={descargo.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                      filteredDescargos.map((descargo, idx) => (
+                        <tr key={`${descargo.id}-${idx}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">{descargo.nombre}</td>
                           <td className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
                             {descargo.codActivoFijo ? (
@@ -953,15 +1116,36 @@ export default function Descargo() {
       {/* Template PDF oculto */}
       {validatedAsignacion && (
         <div ref={printRef} style={{ display: 'none' }}>
-          <DescargoPDFTemplate asignacion={validatedAsignacion} />
+          <DescargoPDFTemplate asignacion={validatedAsignacion} userPermissions={userPermissions} />
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        title="Eliminar Descargo"
+        message="¿Estás seguro de que deseas eliminar este registro de descargo? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        isOpen={showClearHistoryConfirm}
+        title="Limpiar Historial"
+        message={`¿Estás seguro de que deseas eliminar todo el historial de descargos (${descargos.length} registro${descargos.length !== 1 ? 's' : ''})? Esta acción no se puede deshacer.`}
+        confirmText="Limpiar Todo"
+        cancelText="Cancelar"
+        onConfirm={handleConfirmClearHistory}
+        onCancel={() => setShowClearHistoryConfirm(false)}
+        isDangerous={true}
+      />
     </>
   );
 }
 
 // Componente para el template del PDF - Formato FO-TEC-002
-function DescargoPDFTemplate({ asignacion }) {
+function DescargoPDFTemplate({ asignacion, userPermissions }) {
   const codigo = 'FO-TEC-002';
   const vigencia = '05-jun-2025';
   const pagina = '1 de 1';
@@ -1002,7 +1186,10 @@ function DescargoPDFTemplate({ asignacion }) {
   return (
     <div style={{
       width: '210mm',
-      height: '297mm',
+      height: 'auto',
+      minHeight: '297mm',
+      maxHeight: '297mm',
+      overflow: 'hidden',
       padding: '14.4mm 22mm 10mm 22mm',
       backgroundColor: '#ffffff',
       boxSizing: 'border-box',
@@ -1121,7 +1308,7 @@ function DescargoPDFTemplate({ asignacion }) {
               fontSize: '9pt',
               verticalAlign: 'middle'
             }}>
-              Tecnología
+              {userPermissions?.departamento || '___________________________________________'}
             </td>
           </tr>
         </tbody>
@@ -1540,57 +1727,6 @@ function ReportePDFTemplate({ descargos }) {
         }}>
           Generado: {currentDate}
         </p>
-      </div>
-
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        marginBottom: '10px',
-      }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #003399' }}>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Usuario</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Tipo</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Código/Serial</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Marca</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Modelo</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>F. Descargo</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', borderRight: '1px solid #ccc', fontSize: '9px' }}>Descargado Por</th>
-            <th style={{ padding: '8px', textAlign: 'left', fontWeight: 'bold', fontSize: '9px' }}>Observaciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {descargos.map((d, idx) => (
-            <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>{d.nombre}</td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>
-                {d.codActivoFijo ? 'Equipo' : 'Celular'}
-              </td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>
-                {d.codActivoFijo || d.serialCelular}
-              </td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>
-                {d.marca || d.marcaCelular}
-              </td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>
-                {d.modelo || d.modeloCelular}
-              </td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px', fontWeight: 'bold' }}>
-                {d.fechaDescargo}
-              </td>
-              <td style={{ padding: '6px', borderRight: '1px solid #ddd', fontSize: '9px' }}>
-                {d.usuarioDescargo}
-              </td>
-              <td style={{ padding: '6px', fontSize: '9px' }}>
-                {d.observacionesDescargo || 'N/A'}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <div style={{ marginTop: '20px', textAlign: 'right', fontSize: '9px', color: '#666' }}>
-        <p>Total de Descargos: {descargos.length}</p>
       </div>
     </div>
   );
