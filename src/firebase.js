@@ -2,14 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, OAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Reemplaza con tu configuración de Firebase
+// Configuración de Firebase - inventario-equipos-f67f9
 const firebaseConfig = {
-  apiKey: "AIzaSyDISgwREfbDOU1sB448sU5TW6ZUHLy0i_A",
-  authDomain: "inventario-equipos-d1553.firebaseapp.com",
-  projectId: "inventario-equipos-d1553",
-  storageBucket: "inventario-equipos-d1553.firebasestorage.app",
-  messagingSenderId: "581733770014",
-  appId: "1:581733770014:web:4135c37f92480c5983df0f"
+  apiKey: "AIzaSyDL2P7fgoKLOBkqepmsn0QM3cvVL16P1c4",
+  authDomain: "inventario-equipos-f67f9.firebaseapp.com",
+  projectId: "inventario-equipos-f67f9",
+  storageBucket: "inventario-equipos-f67f9.firebasestorage.app",
+  messagingSenderId: "1056879976158",
+  appId: "1:1056879976158:web:3f8c86fcd91cee3b5aec4f"
 };
 
 // Initialize Firebase
