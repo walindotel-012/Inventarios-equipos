@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Icon from './Icon';
@@ -67,8 +68,8 @@ export default function Navbar() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 flex-shrink-0">
               <img 
-                src="https://www.dropbox.com/scl/fi/5du7bzgz607gtzl0puo7w/Logotipo_Autom-aeslogan-mueve-tu-mundo-ahora.png?rlkey=qgl1ljzqex8tfk7p4fivgu32k&st=68jij2ts&dl=1" 
-                alt="AUTOMÍA Logo" 
+                src="/logo.png" 
+                alt="AUTOMÍA Logo"
                 style={{ 
                   maxWidth: '100%',
                   height: 'auto',
@@ -131,7 +132,7 @@ export default function Navbar() {
       </nav>
 
       {/* Menu Drawer - Se ajusta automáticamente al contenido */}
-      {mobileMenuOpen && (
+      {mobileMenuOpen && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -235,7 +236,8 @@ export default function Navbar() {
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.getElementById('portal') || document.body
       )}
     </>
   );

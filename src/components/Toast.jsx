@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function Toast({ message, type = 'success', onClose, duration = 3000 }) {
   useEffect(() => {
@@ -22,10 +23,11 @@ export default function Toast({ message, type = 'success', onClose, duration = 3
     info: 'ℹ️',
   };
 
-  return (
+  return createPortal(
     <div className={`${baseClasses} ${typeClasses[type]}`}>
       <span className="text-xl">{icons[type]}</span>
       <span className="font-medium text-sm">{message}</span>
-    </div>
+    </div>,
+    document.getElementById('portal') || document.body
   );
 }

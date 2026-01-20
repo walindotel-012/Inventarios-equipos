@@ -36,11 +36,17 @@ export default function Asignacion() {
   const [searchSerial, setSearchSerial] = useState('');
   const [searchNombre, setSearchNombre] = useState('');
   const [searchUsuario, setSearchUsuario] = useState('');
-  const [searchFecha, setSearchFecha] = useState('');
+  const [searchCelular, setSearchCelular] = useState('');
   const [searchEquipo, setSearchEquipo] = useState('');
   const [searchModelo, setSearchModelo] = useState('');
   const [showImportForm, setShowImportForm] = useState(false);
   const [importText, setImportText] = useState('');
+  const [showEquipoDropdown, setShowEquipoDropdown] = useState(false);
+  const [showEquipoSecundarioDropdown, setShowEquipoSecundarioDropdown] = useState(false);
+  const [showCelularDropdown, setShowCelularDropdown] = useState(false);
+  const [searchEquipoPrincipal, setSearchEquipoPrincipal] = useState('');
+  const [searchEquipoSec, setSearchEquipoSec] = useState('');
+  const [searchCelularField, setSearchCelularField] = useState('');
 
   const [formData, setFormData] = useState({
     sucursal: '',
@@ -665,6 +671,32 @@ export default function Asignacion() {
     // Buscar la asignación actualizada en el array completo
     const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
     setFormData(asignacionActualizada);
+    
+    // Actualizar los campos de búsqueda con los valores actuales
+    // Equipo principal
+    if (asignacionActualizada.sn) {
+      const equipoPrincipal = equipos.find(e => e.sn === asignacionActualizada.sn);
+      if (equipoPrincipal) {
+        setSearchEquipoPrincipal(`${equipoPrincipal.sn} - ${equipoPrincipal.marca} ${equipoPrincipal.modelo}`);
+      }
+    }
+    
+    // Equipo secundario
+    if (asignacionActualizada.snSecundario) {
+      const equipoSecundario = equipos.find(e => e.sn === asignacionActualizada.snSecundario);
+      if (equipoSecundario) {
+        setSearchEquipoSec(`${equipoSecundario.sn} - ${equipoSecundario.marca} ${equipoSecundario.modelo}`);
+      }
+    }
+    
+    // Celular
+    if (asignacionActualizada.celularId) {
+      const celular = celulares.find(c => c.id === asignacionActualizada.celularId);
+      if (celular) {
+        setSearchCelularField(`${celular.serial} - ${celular.marca} ${celular.modelo}`);
+      }
+    }
+    
     setEditingId(asignacion.id);
     setShowForm(true);
   };
@@ -672,6 +704,13 @@ export default function Asignacion() {
   const handleCancelar = () => {
     setShowForm(false);
     setEditingId(null);
+    setShowEquipoSecundario(false);
+    setSearchEquipoPrincipal('');
+    setSearchEquipoSec('');
+    setSearchCelularField('');
+    setShowEquipoDropdown(false);
+    setShowEquipoSecundarioDropdown(false);
+    setShowCelularDropdown(false);
     setFormData({
       sucursal: '',
       oficina: '',
@@ -713,6 +752,13 @@ export default function Asignacion() {
   };
 
   const handleNueva = () => {
+    setShowEquipoSecundario(false);
+    setSearchEquipoPrincipal('');
+    setSearchEquipoSec('');
+    setSearchCelularField('');
+    setShowEquipoDropdown(false);
+    setShowEquipoSecundarioDropdown(false);
+    setShowCelularDropdown(false);
     setFormData({
       sucursal: '',
       oficina: '',
@@ -1133,10 +1179,10 @@ export default function Asignacion() {
       const matchUsuario = asignacion.usuario
         .toLowerCase()
         .includes(searchUsuario.toLowerCase());
-      const matchFecha = !searchFecha || asignacion.fechaAsignacion === searchFecha;
+      const matchCelular = !searchCelular || asignacion.serialCelular === searchCelular;
       const matchEquipo = !searchEquipo || asignacion.tipoEquipo === searchEquipo;
       const matchModelo = !searchModelo || asignacion.modelo === searchModelo;
-      return matchSerial && matchNombre && matchUsuario && matchFecha && matchEquipo && matchModelo;
+      return matchSerial && matchNombre && matchUsuario && matchCelular && matchEquipo && matchModelo;
     });
 
     if (asignacionesFiltradas.length === 0) {
@@ -1429,29 +1475,66 @@ export default function Asignacion() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
-                    <select
-                      name="equipo"
-                      value={formData.sn}
-                      onChange={(e) => handleEquipoChange(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
-                    >
-                      <option value="">Seleccionar serial...</option>
-                      {equipos.map(eq => {
-                        const isCurrentlyAssigned = formData.equipo && eq.id === formData.equipo;
-                        const isAvailable = !eq.asignado || eq.estado === 'disponible';
-                        
-                        // Solo mostrar equipos disponibles o el actualmente seleccionado
-                        if (!isAvailable && !isCurrentlyAssigned) {
-                          return null;
-                        }
-                        
-                        return (
-                          <option key={eq.id} value={eq.sn}>
-                            {eq.sn} - {eq.marca} {eq.modelo}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchEquipoPrincipal}
+                        onChange={(e) => setSearchEquipoPrincipal(e.target.value)}
+                        onFocus={() => setShowEquipoDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowEquipoDropdown(false), 200)}
+                        placeholder="Escribir o buscar serial..."
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                      />
+                      
+                      {showEquipoDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                          {equipos
+                            .filter(eq => {
+                              const isCurrentlyAssigned = formData.sn === eq.sn;
+                              const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                              const matchesSearch = `${eq.sn} - ${eq.marca} ${eq.modelo}`.toLowerCase().includes(searchEquipoPrincipal.toLowerCase());
+                              
+                              // Si estamos editando, mostrar también equipos que pueden estar asignados a otras asignaciones
+                              // excepto a esta misma asignación
+                              if (editingId && isCurrentlyAssigned) {
+                                return matchesSearch;
+                              }
+                              
+                              return matchesSearch && isAvailable;
+                            })
+                            .map(eq => (
+                              <button
+                                type="button"
+                                key={eq.id}
+                                onClick={() => {
+                                  setSearchEquipoPrincipal(`${eq.sn} - ${eq.marca} ${eq.modelo}`);
+                                  handleEquipoChange(eq.sn);
+                                  setShowEquipoDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-semibold text-gray-900">{eq.sn}</div>
+                                <div className="text-xs text-gray-600">{eq.marca} {eq.modelo}</div>
+                              </button>
+                            ))}
+                          {searchEquipoPrincipal && equipos.filter(eq => {
+                            const isCurrentlyAssigned = formData.sn === eq.sn;
+                            const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                            const matchesSearch = `${eq.sn} - ${eq.marca} ${eq.modelo}`.toLowerCase().includes(searchEquipoPrincipal.toLowerCase());
+                            
+                            if (editingId && isCurrentlyAssigned) {
+                              return matchesSearch;
+                            }
+                            
+                            return matchesSearch && isAvailable;
+                          }).length === 0 && (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              No se encontraron equipos
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Código Activo Fijo</label>
@@ -1544,38 +1627,76 @@ export default function Asignacion() {
                     <span className="text-2xl">💾</span> Equipo Secundario (Opcional)
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
-                      <select
-                        name="equipoSecundario"
-                        value={formData.snSecundario}
-                        onChange={(e) => handleEquipoSecundarioChange(e.target.value)}
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                      >
-                        <option value="">Seleccionar serial...</option>
-                        {equipos.map(eq => {
-                          const isCurrentlyAssigned = formData.equipoSecundario && eq.id === formData.equipoSecundario;
-                          const isAvailable = !eq.asignado || eq.estado === 'disponible';
-                          const isPrimaryEquipment = formData.equipo && eq.id === formData.equipo;
-                          
-                          // No mostrar si está asignado y no es el seleccionado actualmente
-                          if (!isAvailable && !isCurrentlyAssigned) {
-                            return null;
-                          }
-                          
-                          // No mostrar si es el equipo principal y no es el seleccionado actualmente
-                          if (isPrimaryEquipment && !isCurrentlyAssigned) {
-                            return null;
-                          }
-                          
-                          return (
-                            <option key={eq.id} value={eq.sn}>
-                              {eq.sn} - {eq.marca} {eq.modelo}
-                            </option>
-                          );
-                        })}
-                      </select>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchEquipoSec}
+                        onChange={(e) => setSearchEquipoSec(e.target.value)}
+                        onFocus={() => setShowEquipoSecundarioDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowEquipoSecundarioDropdown(false), 200)}
+                        placeholder="Escribir o buscar serial..."
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                      />
+                      
+                      {showEquipoSecundarioDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                          {equipos
+                            .filter(eq => {
+                              const isCurrentlyAssigned = formData.snSecundario === eq.sn;
+                              const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                              const isPrimaryEquipment = formData.equipo && eq.id === formData.equipo;
+                              const matchesSearch = `${eq.sn} - ${eq.marca} ${eq.modelo}`.toLowerCase().includes(searchEquipoSec.toLowerCase());
+                              
+                              if (!matchesSearch) return false;
+                              if (isPrimaryEquipment && !isCurrentlyAssigned) return false;
+                              
+                              // Si estamos editando y el equipo es el actualmente asignado, mostrarlo
+                              if (editingId && isCurrentlyAssigned) {
+                                return true;
+                              }
+                              
+                              return isAvailable;
+                            })
+                            .map(eq => (
+                              <button
+                                type="button"
+                                key={eq.id}
+                                onClick={() => {
+                                  setSearchEquipoSec(`${eq.sn} - ${eq.marca} ${eq.modelo}`);
+                                  handleEquipoSecundarioChange(eq.sn);
+                                  setShowEquipoSecundarioDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-orange-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-semibold text-gray-900">{eq.sn}</div>
+                                <div className="text-xs text-gray-600">{eq.marca} {eq.modelo}</div>
+                              </button>
+                            ))}
+                          {searchEquipoSec && equipos.filter(eq => {
+                            const isCurrentlyAssigned = formData.snSecundario === eq.sn;
+                            const isAvailable = !eq.asignado || eq.estado === 'disponible';
+                            const isPrimaryEquipment = formData.equipo && eq.id === formData.equipo;
+                            const matchesSearch = `${eq.sn} - ${eq.marca} ${eq.modelo}`.toLowerCase().includes(searchEquipoSec.toLowerCase());
+                            
+                            if (!matchesSearch) return false;
+                            if (isPrimaryEquipment && !isCurrentlyAssigned) return false;
+                            
+                            if (editingId && isCurrentlyAssigned) {
+                              return true;
+                            }
+                            
+                            return isAvailable;
+                          }).length === 0 && (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              No se encontraron equipos
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
+                  </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Código Activo Fijo</label>
                       <input type="text" value={formData.codActivoFijoSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
@@ -1618,33 +1739,62 @@ export default function Asignacion() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Seleccionar Celular</label>
-                    <select
-                      value={formData.celularId}
-                      onChange={(e) => handleCelularChange(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400"
-                    >
-                      <option value="">Seleccionar celular...</option>
-                      {celulares.map(cel => {
-                        const isCurrentlyAssigned = formData.celularId && cel.id === formData.celularId;
-                        const isAvailable = !cel.asignado || cel.estado === 'disponible';
-                        
-                        // Solo mostrar celulares disponibles o el celular asignado a ESTA asignación específica
-                        // Si estamos editando (editingId existe), permitir el celular de esta asignación
-                        // Si no, solo permitir celulares disponibles
-                        const celularAsignacionActual = editingId && asignaciones.find(a => a.id === editingId && a.celularId === cel.id);
-                        const canShow = isAvailable || isCurrentlyAssigned || !!celularAsignacionActual;
-                        
-                        if (!canShow) {
-                          return null;
-                        }
-                        
-                        return (
-                          <option key={cel.id} value={cel.id}>
-                            {cel.serial} - {cel.marca} {cel.modelo}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchCelularField}
+                        onChange={(e) => setSearchCelularField(e.target.value)}
+                        onFocus={() => setShowCelularDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowCelularDropdown(false), 200)}
+                        placeholder="Escribir o buscar serial/IMEI/número..."
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                      />
+                      
+                      {showCelularDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                          {celulares
+                            .filter(cel => {
+                              const isCurrentlyAssigned = formData.celularId === cel.id;
+                              const isAvailable = !cel.asignado || cel.estado === 'disponible';
+                              const matchesSearch = `${cel.serial} - ${cel.marca} ${cel.modelo} ${cel.numero} ${cel.imei}`.toLowerCase().includes(searchCelularField.toLowerCase());
+                              
+                              const celularAsignacionActual = editingId && asignaciones.find(a => a.id === editingId && a.celularId === cel.id);
+                              const canShow = isAvailable || isCurrentlyAssigned || !!celularAsignacionActual;
+                              
+                              return matchesSearch && canShow;
+                            })
+                            .map(cel => (
+                              <button
+                                type="button"
+                                key={cel.id}
+                                onClick={() => {
+                                  setSearchCelularField(`${cel.serial} - ${cel.marca} ${cel.modelo}`);
+                                  handleCelularChange(cel.id);
+                                  setShowCelularDropdown(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                              >
+                                <div className="font-semibold text-gray-900">{cel.serial}</div>
+                                <div className="text-xs text-gray-600">{cel.marca} {cel.modelo} • {cel.numero}</div>
+                              </button>
+                            ))}
+                          {searchCelularField && celulares.filter(cel => {
+                            const isCurrentlyAssigned = formData.celularId === cel.id;
+                            const isAvailable = !cel.asignado || cel.estado === 'disponible';
+                            const matchesSearch = `${cel.serial} - ${cel.marca} ${cel.modelo} ${cel.numero} ${cel.imei}`.toLowerCase().includes(searchCelularField.toLowerCase());
+                            
+                            const celularAsignacionActual = editingId && asignaciones.find(a => a.id === editingId && a.celularId === cel.id);
+                            const canShow = isAvailable || isCurrentlyAssigned || !!celularAsignacionActual;
+                            
+                            return matchesSearch && canShow;
+                          }).length === 0 && (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                              No se encontraron celulares
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {formData.celularId && (
                     <>
@@ -1853,13 +2003,24 @@ export default function Asignacion() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Fecha</label>
-                    <input
-                      type="date"
-                      value={searchFecha}
-                      onChange={(e) => setSearchFecha(e.target.value)}
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Celular</label>
+                    <select
+                      value={searchCelular}
+                      onChange={(e) => setSearchCelular(e.target.value)}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
+                    >
+                      <option value="">-- Todos los celulares --</option>
+                      {asignaciones
+                        .filter(a => a.serialCelular)
+                        .map(a => a.serialCelular)
+                        .filter((serial, index, self) => self.indexOf(serial) === index)
+                        .sort()
+                        .map(serial => (
+                          <option key={serial} value={serial}>
+                            {serial}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1889,10 +2050,10 @@ export default function Asignacion() {
                           const matchUsuario = asignacion.usuario
                             .toLowerCase()
                             .includes(searchUsuario.toLowerCase());
-                          const matchFecha = !searchFecha || asignacion.fechaAsignacion === searchFecha;
+                          const matchCelular = !searchCelular || asignacion.serialCelular === searchCelular;
                           const matchEquipo = !searchEquipo || asignacion.tipoEquipo === searchEquipo;
                           const matchModelo = !searchModelo || asignacion.modelo === searchModelo;
-                          return matchSerial && matchNombre && matchUsuario && matchFecha && matchEquipo && matchModelo;
+                          return matchSerial && matchNombre && matchUsuario && matchCelular && matchEquipo && matchModelo;
                         })
                         .map(asignacion => (
                           <tr key={asignacion.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">

@@ -89,21 +89,70 @@ export default function HojaEntrega() {
       pdfContainer.innerHTML = printRef.current.innerHTML;
       document.body.appendChild(pdfContainer);
 
-      // Esperar a que se renderize
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Esperar a que se carguen todas las imágenes
+      const images = pdfContainer.querySelectorAll('img');
+      
+      if (images.length > 0) {
+        await new Promise((resolve) => {
+          let loadedImages = 0;
+          let resolved = false;
+          
+          const checkIfDone = () => {
+            if (loadedImages === images.length && !resolved) {
+              resolved = true;
+              resolve(true);
+            }
+          };
+          
+          const onImageLoad = () => {
+            loadedImages++;
+            checkIfDone();
+          };
+          
+          images.forEach(img => {
+            if (img.complete) {
+              loadedImages++;
+            } else {
+              img.addEventListener('load', onImageLoad);
+              img.addEventListener('error', onImageLoad);
+            }
+          });
+          
+          // Verificar inmediatamente si todas ya están cargadas
+          checkIfDone();
+          
+          // Fallback después de 2 segundos como máximo
+          setTimeout(() => {
+            if (!resolved) {
+              resolved = true;
+              resolve(true);
+            }
+          }, 2000);
+        });
+      }
+      
+      // Esperar un poco adicional para que se renderice bien
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       // Capturar con escala 100%
       const canvas = await html2canvas(pdfContainer, {
         scale: 1,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
-        logging: true,
+        logging: false,
         windowWidth: pdfContainer.offsetWidth,
         windowHeight: pdfContainer.offsetHeight,
         timeout: 30000,
         imageTimeout: 30000,
         removeContainer: false,
+        ignoreElements: (element) => {
+          // Ignorar elementos que no queremos en la captura
+          if (element.classList && element.classList.contains('no-print')) {
+            return true;
+          }
+          return false;
+        }
       });
 
       if (!canvas || canvas.width === 0 || canvas.height === 0) {
@@ -247,8 +296,12 @@ export default function HojaEntrega() {
     // Esperar a que se carguen todas las imágenes antes de imprimir
     const images = iframeDoc.querySelectorAll('img');
     let loadedImages = 0;
+    let printCalled = false; // Flag para evitar llamadas múltiples a print()
     
     const doPrint = () => {
+      if (printCalled) return; // Evitar múltiples llamadas
+      printCalled = true;
+      
       iframe.contentWindow.print();
       // Limpiar después de que se cierre el diálogo de impresión
       setTimeout(() => {
@@ -284,12 +337,10 @@ export default function HojaEntrega() {
         doPrint();
       }
       
-      // Fallback: si las imágenes no cargan después de 3 segundos, imprimir de todas formas
+      // Fallback: si las imágenes no cargan después de 5 segundos, imprimir de todas formas
       setTimeout(() => {
-        if (loadedImages < images.length) {
-          doPrint();
-        }
-      }, 3000);
+        doPrint(); // Usar el flag en doPrint para evitar duplicados
+      }, 5000);
     }
   };
 
@@ -408,8 +459,8 @@ export default function HojaEntrega() {
                       fontFamily: "'Kodchasan', sans-serif"
                     }}>
                       <img 
-                        src="https://www.dropbox.com/scl/fi/5du7bzgz607gtzl0puo7w/Logotipo_Autom-aeslogan-mueve-tu-mundo-ahora.png?rlkey=qgl1ljzqex8tfk7p4fivgu32k&st=68jij2ts&dl=1" 
-                        alt="AUTOMÍA Logo" 
+                        src="/logo.png" 
+                        alt="AUTOMÍA Logo"
                         style={{ 
                           // PUEDES MODIFICAR ESTOS VALORES PARA AJUSTAR EL TAMAÑO DEL LOGO
                           maxWidth: '100%',

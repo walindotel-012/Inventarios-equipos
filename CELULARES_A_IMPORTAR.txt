@@ -1,0 +1,127 @@
+CELULARES_A_IMPORTAR.txt - FORMATO TAB-SEPARATED
+=================================================
+
+INSTRUCCIONES:
+1. Abre este archivo en un editor de texto (Notepad, VS Code, etc.)
+2. Reemplaza los ejemplos con tus datos reales
+3. Asegúrate de usar TAB (no espacios) entre columnas
+4. Copia TODO (desde la primera línea hasta la última)
+5. Pega en el formulario de importación en el módulo Celulares
+6. Haz clic en "Importar"
+
+FORMATO (sin comillas):
+Tipo de equipo	Condición	Restricción	Serial	Marca	Modelo	IMEI	Número	Plan	Fecha Entrega
+
+=================================================
+EJEMPLO 1 - Importación de Equipos Corporativos
+=================================================
+
+FLOTA	Nuevo	Abierta	CORP001	Apple	iPhone 14 Pro	359620098765432	+57 3001234567	10 GB Plus con bloqueo	2024-01-15
+FLOTA	Nuevo	Abierta	CORP002	Apple	iPhone 14 Pro	359620098765433	+57 3001234568	10 GB Plus con bloqueo	2024-01-15
+FLOTA	Nuevo	Cerrada	CORP003	Samsung	Galaxy S23 Ultra	359620098765434	+57 3001234569	10 GB Plus con bloqueo	2024-01-15
+FLOTA	Nuevo	Abierta	CORP004	Samsung	Galaxy S23	359620098765435	+57 3001234570	10 GB Plus con bloqueo	2024-01-16
+FLOTA	Usado	Abierta	CORP005	Motorola	Edge 40	359620098765436	+57 3001234571	10 GB Plus con bloqueo	2024-01-16
+
+=================================================
+EJEMPLO 2 - Importación con Dispositivos ESIM
+=================================================
+
+ESIM	Nuevo	Abierta LDI	ESIM001	Google	Pixel 7 Pro	359620098765437	+57 3101234567	10 GB Plus con bloqueo	2024-01-17
+ESIM	Nuevo	Abierta LDI	ESIM002	Google	Pixel 7	359620098765438	+57 3101234568	10 GB Plus con bloqueo	2024-01-17
+ESIM	Nuevo	Abierta LDI	ESIM003	Samsung	Galaxy Z Fold 5	359620098765439	+57 3101234569	10 GB Plus con bloqueo	2024-01-17
+
+=================================================
+EJEMPLO 3 - Importación Mixta (FLOTA + ESIM)
+=================================================
+
+FLOTA	Nuevo	Abierta	MIX001	Apple	iPhone 15 Pro Max	359620098765440	+57 3201234567	10 GB Plus con bloqueo	2024-01-18
+ESIM	Nuevo	Abierta LDI	MIX002	Samsung	Galaxy A54	359620098765441	+57 3201234568	10 GB Plus con bloqueo	2024-01-18
+FLOTA	Usado	Cerrada	MIX003	Motorola	Moto G54	359620098765442	+57 3201234569	10 GB Plus con bloqueo	2024-01-18
+FLOTA	Nuevo	Abierta	MIX004	OnePlus	12	359620098765443	+57 3201234570	10 GB Plus con bloqueo	2024-01-18
+ESIM	Nuevo	Abierta LDI	MIX005	Xiaomi	14 Ultra	359620098765444	+57 3201234571	10 GB Plus con bloqueo	2024-01-18
+
+=================================================
+EJEMPLO 4 - Importación de Dispositivos Personales
+=================================================
+
+FLOTA	Usado	Abierta	PERS001	Apple	iPhone 13	359620098765445	+57 3301234567	10 GB Plus con bloqueo	2024-01-19
+FLOTA	Usado	Abierta	PERS002	Samsung	Galaxy S22	359620098765446	+57 3301234568	10 GB Plus con bloqueo	2024-01-19
+FLOTA	Personal-ESIM	Cerrada	PERS003	Motorola	Edge 30	359620098765447	+57 3301234569	10 GB Plus con bloqueo	2024-01-19
+
+=================================================
+DATOS EN BLANCO PARA LLENAR MANUALMENTE
+=================================================
+
+FLOTA	Nuevo	Abierta				+57 		2024-01-
+FLOTA	Nuevo	Abierta				+57 		2024-01-
+FLOTA	Nuevo	Abierta				+57 		2024-01-
+FLOTA	Nuevo	Abierta				+57 		2024-01-
+FLOTA	Nuevo	Abierta				+57 		2024-01-
+
+=================================================
+NOTAS IMPORTANTES:
+=================================================
+
+1. TIPO DE EQUIPO: Debe ser FLOTA o ESIM
+   
+2. CONDICIÓN: Debe ser uno de estos:
+   - Nuevo
+   - Usado
+   - Personal-ESIM
+
+3. RESTRICCIÓN: Puede ser:
+   - Abierta
+   - Cerrada
+   - Abierta LDI
+   (u otras que agregues)
+
+4. SERIAL: Número de serie único del dispositivo
+   - No debe repetirse en la base de datos
+   - Se convierte a mayúsculas automáticamente
+
+5. MARCA: Fabricante del dispositivo
+   - Apple, Samsung, Motorola, Google, Xiaomi, etc.
+   - Se agregarán nuevas marcas automáticamente si no existen
+
+6. MODELO: Modelo específico del dispositivo
+   - Ej: iPhone 14 Pro, Galaxy S23 Ultra
+
+7. IMEI: Código internacional de identificación del dispositivo
+   - Generalmente 15 dígitos
+   - No debe repetirse en la base de datos
+   - Se convierte a mayúsculas automáticamente
+
+8. NÚMERO: Número de teléfono asignado
+   - Formato: +57 3001234567 (recomendado)
+   - Acepta cualquier formato
+
+9. PLAN: Plan de datos contratado
+   - Ej: 10 GB Plus con bloqueo
+   - Se agregarán nuevos planes automáticamente si no existen
+
+10. FECHA ENTREGA: Fecha de entrega al usuario
+    - Formato: YYYY-MM-DD (ISO)
+    - Ej: 2024-01-15
+
+=================================================
+VALIDACIONES AUTOMÁTICAS DEL SISTEMA:
+=================================================
+
+✓ Seriales duplicados serán ignorados
+✓ IMEI duplicados serán ignorados
+✓ Se convertirán automáticamente a mayúsculas
+✓ Se validarán todos los campos requeridos
+✓ Se registrará la importación en auditoría
+
+=================================================
+PASOS FINALES:
+=================================================
+
+1. Copia el contenido desde la primera línea de datos hasta la última
+2. Abre el módulo "Gestión de Celulares"
+3. Haz clic en "Importar Lote"
+4. Pega los datos en el área de texto
+5. Verifica el número de registros a importar
+6. Haz clic en "Importar"
+7. Espera a que se complete la importación
+8. Revisa el mensaje de confirmación

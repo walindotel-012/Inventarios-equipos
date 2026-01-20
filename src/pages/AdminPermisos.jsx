@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +32,8 @@ export default function AdminPermisos() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserNombre, setNewUserNombre] = useState('');
   const [newUserDepartamento, setNewUserDepartamento] = useState('');
+  const [showClearDatabaseConfirm, setShowClearDatabaseConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
 
   // Verificar si el usuario es admin
   const isAdmin = userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com';
@@ -205,6 +208,28 @@ export default function AdminPermisos() {
       showToast('Error al agregar usuario', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearAllDatabase = async () => {
+    try {
+      setIsClearing(true);
+      const collections = ['equipos', 'celulares', 'nomenclaturas', 'asignaciones', 'entregas', 'descargos', 'bitacora'];
+      
+      for (const collectionName of collections) {
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        for (const document of querySnapshot.docs) {
+          await deleteDoc(document.ref);
+        }
+      }
+      
+      setShowClearDatabaseConfirm(false);
+      showToast('✓ Base de datos limpiada exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al limpiar base de datos:', error);
+      showToast('✗ Error al limpiar la base de datos: ' + error.message, 'error');
+    } finally {
+      setIsClearing(false);
     }
   };
 
@@ -473,7 +498,7 @@ export default function AdminPermisos() {
       )}
 
       {/* Add User Modal */}
-      {showAddUser && (
+      {showAddUser && createPortal(
         <>
           {/* Backdrop */}
           <div
@@ -557,6 +582,76 @@ export default function AdminPermisos() {
             </div>
           </div>
         </>
+      , document.getElementById('portal') || document.body
+      )}
+
+      {/* Danger Zone - Limpiar Base de Datos */}
+      <div className="mt-12 pt-8 border-t-2 border-gray-200">
+        <h2 className="text-lg font-bold text-gray-900 font-manrope mb-4">Zona de Peligro</h2>
+        <div className="card-saas bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-900 font-manrope mb-2 flex items-center gap-2">
+                <Icon name="TrashOutline" size="md" color="#991b1b" />
+                Limpiar Base de Datos
+              </h3>
+              <p className="text-red-700 text-sm mb-4">Elimina todos los registros del sistema incluyendo equipos, celulares, asignaciones y más. <span className="font-semibold">Esta acción no se puede deshacer.</span></p>
+            </div>
+            <button
+              onClick={() => setShowClearDatabaseConfirm(true)}
+              disabled={isClearing}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              <Icon name="TrashOutline" size="sm" color="white" />
+              {isClearing ? 'Limpiando...' : 'Limpiar Todo'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Clear Database Confirmation Modal */}
+      {showClearDatabaseConfirm && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Icon name="AlertCircleOutline" size="md" color="#991b1b" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">⚠️ Confirmar eliminación</h2>
+            </div>
+            
+            <p className="text-gray-700 text-sm mb-2">Esta acción eliminará <span className="font-semibold">TODOS</span> los registros de:</p>
+            <ul className="text-gray-600 text-sm space-y-1 mb-6 pl-4">
+              <li>• Equipos</li>
+              <li>• Celulares</li>
+              <li>• Nomenclaturas</li>
+              <li>• Asignaciones</li>
+              <li>• Entregas</li>
+              <li>• Descargos</li>
+              <li>• Bitácora</li>
+            </ul>
+
+            <p className="text-red-700 font-semibold text-sm mb-6">⚠️ Esta acción NO se puede deshacer. Asegúrate de tener un respaldo.</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearDatabaseConfirm(false)}
+                disabled={isClearing}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={clearAllDatabase}
+                disabled={isClearing}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors"
+              >
+                {isClearing ? 'Limpiando...' : 'Eliminar Todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.getElementById('portal') || document.body
       )}
 
       {/* Toast */}

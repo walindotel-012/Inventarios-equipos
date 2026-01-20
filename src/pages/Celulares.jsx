@@ -26,6 +26,8 @@ export default function Celulares() {
   const [editingId, setEditingId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importText, setImportText] = useState('');
   const [marcas, setMarcas] = useState(MARCAS_CELULARES_INICIALES);
   const [restricciones, setRestricciones] = useState(RESTRICCIONES_INICIALES);
   const [planes, setPlanes] = useState(PLANES_INICIALES);
@@ -307,6 +309,124 @@ export default function Celulares() {
     });
   };
 
+  // Importar celulares en lote
+  const handleImportCelulares = async (e) => {
+    e.preventDefault();
+
+    if (!importText.trim()) {
+      showToast('Por favor pega los celulares a importar', 'warning');
+      return;
+    }
+
+    // Parsear los celulares del texto (tab-separated)
+    const lineas = importText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lineas.length === 0) {
+      showToast('No hay celulares válidos para importar', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let importados = 0;
+      let errores = 0;
+      let seriesDuplicadas = 0;
+      let imeiDuplicados = 0;
+      const seriesYaImportadas = new Set();
+      const imeisYaImportados = new Set();
+
+      for (const linea of lineas) {
+        try {
+          // Parsear los campos separados por TAB
+          // Orden: Tipo de equipo | Condición | Restricción | Serial | Marca | Modelo | IMEI | Número | Plan | Fecha Entrega
+          const campos = linea.split('\t').map(c => c.trim());
+          
+          // Validar que haya 10 campos requeridos
+          if (campos.length < 10) {
+            console.warn(`Línea skipped (campos insuficientes): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          const [tipoEquipo, condicion, restriccion, serial, marca, modelo, imei, numero, plan, fechaEntrega] = campos;
+
+          // Validar campos requeridos
+          if (!tipoEquipo || !condicion || !serial || !marca || !modelo || !imei || !numero || !plan || !fechaEntrega) {
+            console.warn(`Línea skipped (campos vacíos): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          // Convertir serial e IMEI a mayúsculas
+          const serialMayuscula = serial.toUpperCase();
+          const imeiMayuscula = imei.toUpperCase();
+
+          // Validar que el serial no esté duplicado
+          if (celulares.some(c => c.serial.toUpperCase() === serialMayuscula) || seriesYaImportadas.has(serialMayuscula)) {
+            console.warn(`Serial duplicado: ${serial}`);
+            seriesDuplicadas++;
+            continue;
+          }
+
+          // Validar que el IMEI no esté duplicado
+          if (celulares.some(c => c.imei.toUpperCase() === imeiMayuscula) || imeisYaImportados.has(imeiMayuscula)) {
+            console.warn(`IMEI duplicado: ${imei}`);
+            imeiDuplicados++;
+            continue;
+          }
+
+          seriesYaImportadas.add(serialMayuscula);
+          imeisYaImportados.add(imeiMayuscula);
+
+          // Insertar en Firestore
+          await addDoc(collection(db, 'celulares'), {
+            tipoEquipo: tipoEquipo.trim(),
+            condicion: condicion.trim(),
+            restriccion: restriccion.trim(),
+            serial: serialMayuscula,
+            marca: marca.trim(),
+            modelo: modelo.trim(),
+            imei: imeiMayuscula,
+            numero: numero.trim(),
+            plan: plan.trim(),
+            fechaEntrega: fechaEntrega.trim(),
+            registradoPor: currentUser.displayName || currentUser.email,
+            fechaRegistro: new Date(),
+          });
+
+          importados++;
+        } catch (lineError) {
+          console.error('Error procesando línea:', lineError);
+          errores++;
+        }
+      }
+
+      let mensaje = `Se importaron ${importados} celular${importados !== 1 ? 'es' : ''}`;
+      if (seriesDuplicadas > 0) {
+        mensaje += ` (${seriesDuplicadas} serial${seriesDuplicadas !== 1 ? 'es' : ''} duplicado${seriesDuplicadas !== 1 ? 's' : ''} ignorado${seriesDuplicadas !== 1 ? 's' : ''})`;
+      }
+      if (imeiDuplicados > 0) {
+        mensaje += ` (${imeiDuplicados} IMEI duplicado${imeiDuplicados !== 1 ? 's' : ''} ignorado${imeiDuplicados !== 1 ? 's' : ''})`;
+      }
+      if (errores > 0) {
+        mensaje += ` (${errores} línea${errores !== 1 ? 's' : ''} con error)`;
+      }
+      showToast(mensaje, importados > 0 ? 'success' : 'warning');
+
+      setImportText('');
+      setShowImportForm(false);
+      loadCelulares();
+    } catch (error) {
+      console.error('Error al importar:', error);
+      showToast('Error al importar celulares', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Filtrar celulares basado en los filtros activos
   const celularesFiltrados = celulares.filter(celular => {
     if (filtros.condicion && celular.condicion !== filtros.condicion) return false;
@@ -375,21 +495,115 @@ export default function Celulares() {
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Gestión de Celulares</h1>
             <p className="text-gray-600 text-base">Registra y administra todos los dispositivos móviles</p>
           </div>
-          {!showForm && (
-            <button
-              onClick={handleNuevoCelular}
-              className="btn-primary flex items-center justify-center gap-2"
-            >
-              <Icon name="AddOutline" size="sm" color="white" />
-              Nuevo Celular
-            </button>
+          {!showForm && !showImportForm && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportForm(true)}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Icon name="CloudUploadOutline" size="sm" color="#6b7280" />
+                Importar Lote
+              </button>
+              <button
+                onClick={handleNuevoCelular}
+                className="btn-primary flex items-center justify-center gap-2"
+              >
+                <Icon name="AddOutline" size="sm" color="white" />
+                Nuevo Celular
+              </button>
+            </div>
           )}
         </div>
       </div>
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {showForm ? (
+        {showImportForm ? (
+          // Vista con formulario de importación
+          <div className="card-saas-lg bg-white max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-500 rounded-xl flex items-center justify-center text-lg">📥</div>
+              Importar Celulares en Lote
+            </h2>
+
+            <form onSubmit={handleImportCelulares} className="space-y-6">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-2">
+                <Icon name="InformationCircleOutline" size="sm" color="#0284c7" />
+                <div>
+                  <p className="text-blue-900 text-sm font-semibold">Formato esperado (separado por TAB)</p>
+                  <p className="text-blue-800 text-xs mt-2 font-mono">
+                    Tipo de equipo | Condición | Restricción | Serial | Marca | Modelo | IMEI | Número | Plan | Fecha Entrega
+                  </p>
+                  <p className="text-blue-800 text-xs mt-2">
+                    Ejemplo: FLOTA | Nuevo | Abierta | SN123456 | Apple | iPhone 14 Pro | 359620098765432 | +57 3001234567 | 10 GB Plus con bloqueo | 2024-01-15
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Celulares (uno por línea, separados por TAB)
+                </label>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Pega los celulares aquí&#10;Usa el formato: Tipo	Condición	Restricción	Serial	Marca	Modelo	IMEI	Número	Plan	Fecha Entrega"
+                  rows="12"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all font-mono"
+                  required
+                />
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="text-xs text-gray-600">
+                    Se importarán: {importText.split('\n').filter(l => l.trim().length > 0).length} celular(es)
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2">
+                <Icon name="AlertCircleOutline" size="sm" color="#d97706" />
+                <div>
+                  <p className="text-amber-900 text-sm font-semibold">Información importante</p>
+                  <ul className="text-amber-800 text-xs mt-1 space-y-1">
+                    <li>• Los seriales duplicados serán ignorados</li>
+                    <li>• Los IMEI duplicados serán ignorados</li>
+                    <li>• Se convertirán seriales e IMEI a mayúsculas</li>
+                    <li>• Todos los campos son requeridos</li>
+                    <li>• Tipo de equipo debe ser: FLOTA o ESIM</li>
+                    <li>• Condición debe ser: Nuevo, Usado o Personal-ESIM</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={loading || importText.trim().length === 0}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      Importar
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImportForm(false)}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : showForm ? (
           // Vista con formulario expandido
           <div className="card-saas-lg bg-white max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">

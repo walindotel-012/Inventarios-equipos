@@ -1,28 +1,43 @@
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, linkWithPopup } from 'firebase/auth';
 import { auth, googleProvider, microsoftProvider } from '../firebase';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const navigate = useNavigate();
 
-  const handleGoogleSignIn = async () => {
+  const handleSignInWithProvider = async (provider, providerName) => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      await signInWithPopup(auth, provider);
       navigate('/');
     } catch (error) {
-      console.error('Error al iniciar sesión:', error);
-      alert('Error al iniciar sesión con Google');
+      // Si la cuenta existe con otro proveedor, intentar vincularla
+      if (error.code === 'auth/account-exists-with-different-credential') {
+        try {
+          const email = error.customData?.email;
+          if (email) {
+            // Intentar vincular el nuevo proveedor con la cuenta existente
+            const result = await signInWithPopup(auth, provider === googleProvider ? microsoftProvider : googleProvider);
+            await linkWithPopup(result.user, provider);
+            navigate('/');
+            return;
+          }
+        } catch (linkError) {
+          console.error('Error al vincular cuenta:', linkError);
+          alert('Esta cuenta ya existe con otro proveedor. Intenta con el mismo proveedor que usaste antes.');
+        }
+      } else {
+        console.error('Error al iniciar sesión:', error);
+        alert(`Error al iniciar sesión con ${providerName}: ${error.message}`);
+      }
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    await handleSignInWithProvider(googleProvider, 'Google');
+  };
+
   const handleMicrosoftSignIn = async () => {
-    try {
-      await signInWithPopup(auth, microsoftProvider);
-      navigate('/');
-    } catch (error) {
-      console.error('Error al iniciar sesión:', error);
-      alert('Error al iniciar sesión con Microsoft');
-    }
+    await handleSignInWithProvider(microsoftProvider, 'Microsoft');
   };
 
   return (

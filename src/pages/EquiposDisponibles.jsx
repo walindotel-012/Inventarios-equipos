@@ -41,6 +41,7 @@ export default function EquiposDisponibles() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tipoFiltro, setTipoFiltro] = useState('todos'); // 'todos', 'equipos', 'celulares'
   const [tipoEspecifico, setTipoEspecifico] = useState(''); // Filtro para tipo específico de equipo o celular
+  const [searchModelo, setSearchModelo] = useState(''); // Filtro por modelo
 
   useEffect(() => {
     loadData();
@@ -114,6 +115,14 @@ export default function EquiposDisponibles() {
         return item.marca === tipoEspecifico;
       }
       return false;
+    });
+  }
+
+  // Aplicar filtro de modelo
+  if (searchModelo) {
+    dataFiltrada = dataFiltrada.filter(item => {
+      const modelo = (item.modelo || '').toLowerCase();
+      return modelo.includes(searchModelo.toLowerCase());
     });
   }
 
@@ -202,6 +211,34 @@ export default function EquiposDisponibles() {
 
   const opcionesTipoEspecifico = getOpcionesTipoEspecifico();
 
+  // Obtener opciones dinámicas para el filtro de modelo
+  const getOpcionesModelo = () => {
+    let dataBase = [];
+    if (tipoFiltro === 'todos') {
+      dataBase = [...equiposDisponibles, ...celularesDisponibles];
+    } else if (tipoFiltro === 'equipos') {
+      dataBase = equiposDisponibles;
+    } else if (tipoFiltro === 'celulares') {
+      dataBase = celularesDisponibles;
+    }
+
+    if (tipoEspecifico) {
+      dataBase = dataBase.filter(item => {
+        if (item.tipo === 'equipo') {
+          return item.tipoEquipo === tipoEspecifico;
+        } else if (item.tipo === 'celular') {
+          return item.marca === tipoEspecifico;
+        }
+        return false;
+      });
+    }
+
+    const modelos = new Set(dataBase.map(e => e.modelo).filter(Boolean));
+    return Array.from(modelos).sort();
+  };
+
+  const opcionesModelo = getOpcionesModelo();
+
   const handleExportarExcel = () => {
     try {
       // Preparar datos para exportar
@@ -269,7 +306,7 @@ export default function EquiposDisponibles() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Filtros y Controles */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Selector de Tipo Principal */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Equipo</label>
@@ -302,6 +339,25 @@ export default function EquiposDisponibles() {
                 {opcionesTipoEspecifico.map(tipo => (
                   <option key={tipo} value={tipo}>
                     {tipo}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Selector de Modelo */}
+          {opcionesModelo.length > 0 && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Modelo</label>
+              <select
+                value={searchModelo}
+                onChange={(e) => setSearchModelo(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              >
+                <option value="">Ver todos</option>
+                {opcionesModelo.map(modelo => (
+                  <option key={modelo} value={modelo}>
+                    {modelo}
                   </option>
                 ))}
               </select>

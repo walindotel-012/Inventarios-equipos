@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from './Icon';
 
 export default function ConfirmDialog({ 
@@ -29,7 +30,7 @@ export default function ConfirmDialog({
     onCancel();
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 transform transition-all animate-in">
         <div className="flex items-start gap-4 mb-4">
@@ -77,6 +78,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.getElementById('portal') || document.body
   );
 }
