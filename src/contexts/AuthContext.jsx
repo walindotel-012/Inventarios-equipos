@@ -51,6 +51,22 @@ export function AuthProvider({ children }) {
       
       if (permissionsDoc.exists()) {
         const permsData = permissionsDoc.data();
+        
+        // Verificar si el usuario está revocado
+        if (permsData.estado === 'revocado') {
+          console.warn('⛔ Usuario revocado - Acceso denegado');
+          // Revocar permisos completamente
+          const revokedPermissions = {
+            userId,
+            rol: 'usuario',
+            isAdmin: false,
+            modulos: [],
+            estado: 'revocado'
+          };
+          setUserPermissions(revokedPermissions);
+          return;
+        }
+        
         console.log('✅ Permisos encontrados:', permsData);
         console.log('👑 ¿Es admin?:', permsData.isAdmin);
         console.log('📦 Módulos:', permsData.modulos);

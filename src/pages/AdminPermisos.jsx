@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
 import Icon from '../components/Icon';
@@ -55,7 +55,9 @@ export default function AdminPermisos() {
       permisosSnapshot.docs.forEach(doc => {
         const data = doc.data();
         permisosData[doc.id] = data;
-        if (data.email) {
+        
+        // Solo incluir usuarios activos (no revocados)
+        if (data.email && data.estado !== 'revocado') {
           usuariosSet.add({
             id: doc.id,
             email: data.email,
@@ -151,25 +153,43 @@ export default function AdminPermisos() {
 
       setLoading(true);
       
-      // Eliminar de Firestore
-      await deleteDoc(doc(db, 'permisos', deleteUserId));
+      // Obtener datos del usuario antes de revocar permisos
+      const usuarioData = permisos[deleteUserId];
+      const userEmail = usuarioData?.email || 'desconocido';
       
-      // Actualizar estado de permisos
-      setPermisos(prev => {
-        const newPermisos = { ...prev };
-        delete newPermisos[deleteUserId];
-        return newPermisos;
-      });
+      // Revocar permisos: actualizar el documento con permisos vacíos y estado revocado
+      // En lugar de eliminar el documento, lo actualizamos para marcar el usuario como revocado
+      const permisoRevocado = {
+        userId: deleteUserId,
+        email: usuarioData?.email || '',
+        nombre: usuarioData?.nombre || usuarioData?.email || '',
+        rol: 'usuario',
+        isAdmin: false,
+        modulos: [], // Sin acceso a ningún módulo
+        estado: 'revocado',
+        fechaRevocacion: new Date().toISOString(),
+        revocadoPor: currentUser.uid,
+        revocadoPorEmail: currentUser.email
+      };
       
-      // Actualizar lista de usuarios
+      // Actualizar documento de permisos con estado revocado
+      await updateDoc(doc(db, 'permisos', deleteUserId), permisoRevocado);
+      
+      // Actualizar estado de permisos local
+      setPermisos(prev => ({
+        ...prev,
+        [deleteUserId]: permisoRevocado
+      }));
+      
+      // Actualizar lista de usuarios (remover de la lista visible)
       setUsuarios(prev => prev.filter(u => u.id !== deleteUserId));
       
-      showToast('Usuario eliminado exitosamente', 'success');
+      showToast(`Permisos revocados para: ${userEmail}`, 'success');
       setShowDeleteConfirm(false);
       setDeleteUserId(null);
     } catch (error) {
-      console.error('Error eliminando usuario:', error);
-      showToast(`Error al eliminar usuario: ${error.message}`, 'error');
+      console.error('Error revocando permisos del usuario:', error);
+      showToast(`Error al revocar permisos: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }
