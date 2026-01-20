@@ -66,6 +66,18 @@ export default function Navbar() {
       <nav className="bg-white border-b border-gray-100 shadow-xs sticky top-0 z-50">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
+            {/* Botón de Retroceso - Izquierda */}
+            {location.pathname !== '/' && (
+              <button
+                onClick={() => navigate(-1)}
+                title="Volver atrás"
+                className="flex items-center justify-center p-2 -ml-2 rounded-lg hover:bg-blue-50 transition-all duration-200 text-blue-600 hover:text-blue-700 mr-2"
+                aria-label="Volver atrás"
+              >
+                <Icon name="ArrowBackOutline" size="lg" color="#2563eb" />
+              </button>
+            )}
+
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 flex-shrink-0">
               <img 
@@ -80,18 +92,6 @@ export default function Navbar() {
               />
               <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent hidden sm:inline font-manrope">Gestión Equipos</span>
             </Link>
-
-            {/* Botón de Retroceso */}
-            {location.pathname !== '/' && (
-              <button
-                onClick={() => navigate(-1)}
-                title="Volver atrás"
-                className="hidden sm:flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-gray-600 hover:text-gray-900"
-                aria-label="Volver atrás"
-              >
-                <Icon name="ArrowBackOutline" size="md" color="neutral" />
-              </button>
-            )}
 
             {/* User Section & Mobile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
