@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Icon from './Icon';
 
@@ -9,6 +9,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [photoURL, setPhotoURL] = useState(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (currentUser?.photoURL) {
@@ -80,6 +81,18 @@ export default function Navbar() {
               <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent hidden sm:inline font-manrope">Gestión Equipos</span>
             </Link>
 
+            {/* Botón de Retroceso */}
+            {location.pathname !== '/' && (
+              <button
+                onClick={() => navigate(-1)}
+                title="Volver atrás"
+                className="hidden sm:flex items-center justify-center p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-gray-600 hover:text-gray-900"
+                aria-label="Volver atrás"
+              >
+                <Icon name="ArrowBackOutline" size="md" color="neutral" />
+              </button>
+            )}
+
             {/* User Section & Mobile Menu */}
             <div className="flex items-center gap-3 sm:gap-4">
               {/* User Profile - Desktop */}
@@ -143,6 +156,22 @@ export default function Navbar() {
           {/* Drawer - Posicionado en la esquina superior derecha */}
           <div className="fixed top-16 right-4 sm:right-6 lg:right-8 max-w-sm w-auto bg-white rounded-2xl border border-gray-100 shadow-lg z-40 animate-in slide-in-from-top-2 duration-300">
             <div className="px-2 sm:px-3 py-3 max-h-[calc(100vh-5rem)] overflow-y-auto">
+              {/* Botón de Retroceso en Móvil */}
+              {location.pathname !== '/' && (
+                <div className="mb-3 pb-3 border-b border-gray-100">
+                  <button
+                    onClick={() => {
+                      navigate(-1);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 text-sm font-medium transition-all duration-200"
+                  >
+                    <Icon name="ArrowBackOutline" size="sm" color="neutral" />
+                    <span>Volver atrás</span>
+                  </button>
+                </div>
+              )}
+
               {/* Módulos Section */}
               <div className="mb-4">
                 <p className="text-xs font-bold text-gray-500 uppercase tracking-wider px-3 mb-2">Módulos</p>
