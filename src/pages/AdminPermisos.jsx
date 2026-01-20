@@ -493,7 +493,7 @@ export default function AdminPermisos() {
           }}
           confirmText="Eliminar"
           cancelText="Cancelar"
-          isDanger={true}
+          isDangerous={true}
         />
       )}
 
