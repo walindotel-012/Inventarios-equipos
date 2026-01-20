@@ -2085,15 +2085,16 @@ export default function Asignacion() {
         )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Eliminar Asignación"
-        message="¿Estás seguro de que deseas eliminar esta asignación? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Asignación"
+          message="¿Estás seguro de que deseas eliminar esta asignación? Esta acción no se puede deshacer."
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

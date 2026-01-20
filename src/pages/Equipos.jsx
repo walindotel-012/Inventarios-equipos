@@ -1353,15 +1353,16 @@ export default function Equipos() {
         )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Eliminar Equipo"
-        message="¿Estás seguro de que deseas eliminar este equipo? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Equipo"
+          message="¿Estás seguro de que deseas eliminar este equipo? Esta acción no se puede deshacer."
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }

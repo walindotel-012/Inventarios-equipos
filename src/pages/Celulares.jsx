@@ -1180,15 +1180,16 @@ export default function Celulares() {
         )}
       </div>
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Eliminar Celular"
-        message="¿Estás seguro de que deseas eliminar este celular? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Celular"
+          message="¿Estás seguro de que deseas eliminar este celular? Esta acción no se puede deshacer."
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }
