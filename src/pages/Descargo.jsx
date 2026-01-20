@@ -1231,26 +1231,28 @@ export default function Descargo() {
         </div>
       )}
 
-      <ConfirmDialog
-        isOpen={showDeleteConfirm}
-        title="Eliminar Descargo"
-        message="¿Estás seguro de que deseas eliminar este registro de descargo? Esta acción no se puede deshacer."
-        confirmText="Eliminar"
-        cancelText="Cancelar"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setShowDeleteConfirm(false)}
-      />
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Descargo"
+          message="¿Estás seguro de que deseas eliminar este registro de descargo? Esta acción no se puede deshacer."
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
 
-      <ConfirmDialog
-        isOpen={showClearHistoryConfirm}
-        title="Limpiar Historial"
-        message={`¿Estás seguro de que deseas eliminar todo el historial de descargos (${descargos.length} registro${descargos.length !== 1 ? 's' : ''})? Esta acción no se puede deshacer.`}
-        confirmText="Limpiar Todo"
-        cancelText="Cancelar"
-        onConfirm={handleConfirmClearHistory}
-        onCancel={() => setShowClearHistoryConfirm(false)}
-        isDangerous={true}
-      />
+      {showClearHistoryConfirm && (
+        <ConfirmDialog
+          title="Limpiar Historial"
+          message={`¿Estás seguro de que deseas eliminar todo el historial de descargos (${descargos.length} registro${descargos.length !== 1 ? 's' : ''})? Esta acción no se puede deshacer.`}
+          confirmText="Limpiar Todo"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmClearHistory}
+          onCancel={() => setShowClearHistoryConfirm(false)}
+          isDangerous={true}
+        />
+      )}
     </>
   );
 }
