@@ -555,8 +555,10 @@ export default function Asignacion() {
             asignado: true,
           });
         }
-      } else if (editingId && asignacionAnterior?.snSecundario) {
-        // Si quitó el equipo secundario, devolverlo a disponible
+      }
+
+      // Si cambió el equipo secundario durante edición, devolver el anterior a disponible
+      if (editingId && asignacionAnterior?.snSecundario && asignacionAnterior.snSecundario !== formData.snSecundario) {
         const equipoSecAnterior = equipos.find(e => e.sn === asignacionAnterior.snSecundario);
         if (equipoSecAnterior) {
           await updateDoc(doc(db, 'equipos', equipoSecAnterior.id), {
@@ -564,8 +566,8 @@ export default function Asignacion() {
             asignado: false,
           });
         }
-      } else if (editingId && asignacionAnterior?.snSecundario && asignacionAnterior.snSecundario !== formData.snSecundario) {
-        // Si cambió el equipo secundario
+      } else if (editingId && asignacionAnterior?.snSecundario && !formData.snSecundario) {
+        // Si quitó el equipo secundario, devolverlo a disponible
         const equipoSecAnterior = equipos.find(e => e.sn === asignacionAnterior.snSecundario);
         if (equipoSecAnterior) {
           await updateDoc(doc(db, 'equipos', equipoSecAnterior.id), {
@@ -584,8 +586,10 @@ export default function Asignacion() {
             asignado: true,
           });
         }
-      } else if (editingId && asignacionAnterior?.serialCelular) {
-        // Si quitó el celular, devolverlo a disponible
+      }
+
+      // Si cambió el celular durante edición, devolver el anterior a disponible
+      if (editingId && asignacionAnterior?.serialCelular && asignacionAnterior.serialCelular !== formData.serialCelular) {
         const celularAnterior = celulares.find(c => c.serial === asignacionAnterior.serialCelular);
         if (celularAnterior) {
           await updateDoc(doc(db, 'celulares', celularAnterior.id), {
@@ -593,8 +597,8 @@ export default function Asignacion() {
             asignado: false,
           });
         }
-      } else if (editingId && asignacionAnterior?.serialCelular && asignacionAnterior.serialCelular !== formData.serialCelular) {
-        // Si cambió el celular
+      } else if (editingId && asignacionAnterior?.serialCelular && !formData.serialCelular) {
+        // Si quitó el celular, devolverlo a disponible
         const celularAnterior = celulares.find(c => c.serial === asignacionAnterior.serialCelular);
         if (celularAnterior) {
           await updateDoc(doc(db, 'celulares', celularAnterior.id), {
