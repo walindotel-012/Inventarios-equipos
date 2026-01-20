@@ -143,20 +143,33 @@ export default function AdminPermisos() {
 
   const handleEliminarUsuario = async () => {
     try {
+      if (!deleteUserId) {
+        console.error('deleteUserId no está definido');
+        showToast('Error: No hay usuario seleccionado para eliminar', 'error');
+        return;
+      }
+
       setLoading(true);
+      
+      // Eliminar de Firestore
       await deleteDoc(doc(db, 'permisos', deleteUserId));
+      
+      // Actualizar estado de permisos
       setPermisos(prev => {
         const newPermisos = { ...prev };
         delete newPermisos[deleteUserId];
         return newPermisos;
       });
+      
+      // Actualizar lista de usuarios
       setUsuarios(prev => prev.filter(u => u.id !== deleteUserId));
+      
       showToast('Usuario eliminado exitosamente', 'success');
       setShowDeleteConfirm(false);
       setDeleteUserId(null);
     } catch (error) {
       console.error('Error eliminando usuario:', error);
-      showToast('Error al eliminar usuario', 'error');
+      showToast(`Error al eliminar usuario: ${error.message}`, 'error');
     } finally {
       setLoading(false);
     }

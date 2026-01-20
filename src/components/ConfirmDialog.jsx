@@ -1,9 +1,7 @@
-import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Icon from './Icon';
 
 export default function ConfirmDialog({ 
-  isOpen, 
   title = '¿Estás seguro?', 
   message = '¿Estás seguro de que deseas eliminar este elemento?',
   confirmText = 'Eliminar',
@@ -12,22 +10,16 @@ export default function ConfirmDialog({
   onCancel,
   isDangerous = true
 }) {
-  const [isVisible, setIsVisible] = useState(isOpen);
-
-  useEffect(() => {
-    setIsVisible(isOpen);
-  }, [isOpen]);
-
-  if (!isVisible) return null;
-
   const handleConfirm = () => {
-    setIsVisible(false);
-    onConfirm();
+    if (onConfirm) {
+      onConfirm();
+    }
   };
 
   const handleCancel = () => {
-    setIsVisible(false);
-    onCancel();
+    if (onCancel) {
+      onCancel();
+    }
   };
 
   return createPortal(
