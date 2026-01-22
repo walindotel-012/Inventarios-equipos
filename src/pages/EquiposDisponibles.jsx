@@ -194,9 +194,9 @@ export default function EquiposDisponibles() {
 
   // Columnas para accesorios
   const columnasAccesorio = [
-    { key: 'codigo', label: 'Código' },
-    { key: 'codActivoFijo', label: 'Código Activo' },
     { key: 'tipo', label: 'Tipo' },
+    { key: 'codigo', label: 'Código' },
+    { key: 'codigoActivoFijo', label: 'Código Activo' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
     { key: 'serial', label: 'Serial' },
@@ -333,11 +333,12 @@ export default function EquiposDisponibles() {
           };
         } else if (item.tipo === 'accesorio') {
           return {
-            'Tipo': 'Accesorio',
+            'Tipo': item.tipo || '-',
             'Código': item.codigo || '-',
-            'Tipo de Accesorio': item.tipo || '-',
+            'Código Activo': item.codigoActivoFijo || '-',
             'Marca': item.marca || '-',
             'Modelo': item.modelo || '-',
+            'Serial': item.serial || '-',
             'Condición': item.condicion || '-',
           };
         }
