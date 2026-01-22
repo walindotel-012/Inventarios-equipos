@@ -7,6 +7,7 @@ import { useToastManager } from '../hooks/useToastManager';
 import Toast from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Icon from '../components/Icon';
+import * as XLSX from 'xlsx';
 
 const CONDICIONES = ['Nuevo', 'Usado'];
 
@@ -168,6 +169,44 @@ export default function Accesorios() {
     (acc.modelo || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Exportar accesorios a Excel
+  const handleExportarExcel = () => {
+    try {
+      if (filteredAccesorios.length === 0) {
+        showToast('No hay accesorios para exportar', 'warning');
+        return;
+      }
+
+      const datosExportar = filteredAccesorios.map(acc => ({
+        'Código': acc.codigoActivoFijo || '-',
+        'Tipo': acc.tipoAccesorio || '-',
+        'Marca': acc.marca || '-',
+        'Modelo': acc.modelo || '-',
+        'Serial': acc.serial || '-',
+        'Condición': acc.condicion || '-',
+        'Creado En': acc.creadoEn ? new Date(acc.creadoEn).toLocaleDateString('es-ES') : '-',
+        'Actualizado En': acc.actualizadoEn ? new Date(acc.actualizadoEn).toLocaleDateString('es-ES') : '-',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(datosExportar);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Accesorios');
+
+      // Ajustar ancho de columnas
+      const maxWidth = 25;
+      ws['!cols'] = Array(Object.keys(datosExportar[0] || {}).length).fill({ wch: maxWidth });
+
+      // Descargar archivo
+      const fecha = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Accesorios_${fecha}.xlsx`);
+
+      showToast('Excel exportado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      showToast('Error al exportar a Excel', 'error');
+    }
+  };
+
   // Verificar permisos
   const hasPermission = userPermissions?.modulos?.includes('accesorios') || 
                         userPermissions?.isAdmin ||
@@ -219,6 +258,15 @@ export default function Accesorios() {
               <Icon name="AddOutline" size="sm" color="white" />
               Crear Accesorio
             </button>
+            {filteredAccesorios.length > 0 && (
+              <button
+                onClick={handleExportarExcel}
+                className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                <Icon name="DownloadOutline" size="sm" color="white" />
+                Exportar Excel
+              </button>
+            )}
           </div>
 
           {/* Tabla */}
