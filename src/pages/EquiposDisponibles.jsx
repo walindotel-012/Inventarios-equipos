@@ -169,22 +169,24 @@ export default function EquiposDisponibles() {
   const columnasEquipo = [
     { key: 'codActivoFijo', label: 'Código' },
     { key: 'tipoEquipo', label: 'Tipo' },
-    { key: 'condicion', label: 'Condición' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
     { key: 'sn', label: 'Serial' },
+    { key: 'condicion', label: 'Condición' },
     { key: 'disco', label: 'Disco' },
     { key: 'memoria', label: 'Memoria' },
     { key: 'procesador', label: 'Procesador' },
+    { key: 'so', label: 'SO' },
+    { key: 'licencia', label: 'Licencia' },
   ];
 
   // Columnas para celulares
   const columnasCelular = [
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
+    { key: 'serial', label: 'Serial' },
     { key: 'condicion', label: 'Condición' },
     { key: 'restriccion', label: 'Restricción' },
-    { key: 'serial', label: 'Serial' },
     { key: 'imei', label: 'IMEI' },
     { key: 'numero', label: 'Número' },
     { key: 'plan', label: 'Plan' },
@@ -193,6 +195,7 @@ export default function EquiposDisponibles() {
   // Columnas para accesorios
   const columnasAccesorio = [
     { key: 'codigo', label: 'Código' },
+    { key: 'codActivoFijo', label: 'Código Activo' },
     { key: 'tipo', label: 'Tipo' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
@@ -215,6 +218,13 @@ export default function EquiposDisponibles() {
       { key: 'condicion', label: 'Condición' },
       { key: 'restriccion', label: 'Restricción' },
       { key: 'imei', label: 'IMEI' },
+      { key: 'numero', label: 'Número' },
+      { key: 'disco', label: 'Disco' },
+      { key: 'memoria', label: 'Memoria' },
+      { key: 'procesador', label: 'Procesador' },
+      { key: 'so', label: 'SO' },
+      { key: 'licencia', label: 'Licencia' },
+      { key: 'plan', label: 'Plan' },
     ];
   } else if (tipoFiltro === 'equipos') {
     columnasAMostrar = columnasEquipo;
