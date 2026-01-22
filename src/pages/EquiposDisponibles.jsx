@@ -196,6 +196,7 @@ export default function EquiposDisponibles() {
     { key: 'tipo', label: 'Tipo' },
     { key: 'marca', label: 'Marca' },
     { key: 'modelo', label: 'Modelo' },
+    { key: 'serial', label: 'Serial' },
     { key: 'condicion', label: 'Condición' },
   ];
 
@@ -204,7 +205,16 @@ export default function EquiposDisponibles() {
   if (tipoFiltro === 'todos') {
     columnasAMostrar = [
       { key: 'tipo', label: 'Tipo' },
-      ...columnasEquipo,
+      { key: 'codigo', label: 'Código' },
+      { key: 'codActivoFijo', label: 'Código Activo' },
+      { key: 'tipoEquipo', label: 'Tipo Equipo' },
+      { key: 'marca', label: 'Marca' },
+      { key: 'modelo', label: 'Modelo' },
+      { key: 'serial', label: 'Serial' },
+      { key: 'sn', label: 'S/N' },
+      { key: 'condicion', label: 'Condición' },
+      { key: 'restriccion', label: 'Restricción' },
+      { key: 'imei', label: 'IMEI' },
     ];
   } else if (tipoFiltro === 'equipos') {
     columnasAMostrar = columnasEquipo;
