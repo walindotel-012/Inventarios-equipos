@@ -123,7 +123,7 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       {toast && <Toast {...toast} onClose={hideToast} />}
       
       <div className="max-w-7xl mx-auto">
@@ -138,7 +138,7 @@ export default function AuditLog() {
 
         {/* Filtros */}
         {logs.length > 0 && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtros</h2>
             <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               {/* Filtro por Módulo */}
@@ -147,7 +147,7 @@ export default function AuditLog() {
                 <select
                   value={filtros.modulo}
                   onChange={(e) => setFiltros({...filtros, modulo: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">Todos los módulos</option>
                   {Object.values(MODULOS).map(mod => (
@@ -162,7 +162,7 @@ export default function AuditLog() {
                 <select
                   value={filtros.accion}
                   onChange={(e) => setFiltros({...filtros, accion: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">Todas las acciones</option>
                   {Object.entries(ACCIONES).map(([key, value]) => (
@@ -177,7 +177,7 @@ export default function AuditLog() {
                 <select
                   value={filtros.usuario}
                   onChange={(e) => setFiltros({...filtros, usuario: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   <option value="">Todos los usuarios</option>
                   {usuarios.map(user => (
@@ -193,7 +193,7 @@ export default function AuditLog() {
                   type="date"
                   value={filtros.fechaInicio}
                   onChange={(e) => setFiltros({...filtros, fechaInicio: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
@@ -204,7 +204,7 @@ export default function AuditLog() {
                   type="date"
                   value={filtros.fechaFin}
                   onChange={(e) => setFiltros({...filtros, fechaFin: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
@@ -225,31 +225,31 @@ export default function AuditLog() {
 
         {/* Tabla de Logs */}
         {loading ? (
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
             <div className="inline-block animate-spin">
               <Icon name="ArrowPathOutline" size="lg" color="#3b82f6" />
             </div>
             <p className="text-gray-600 mt-4">Cargando bitácora...</p>
           </div>
         ) : logsFiltrados.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <Icon name="InformationCircleOutline" size="lg" color="#9ca3af" />
-            <p className="text-gray-600 mt-4">
+            <p className="text-slate-400 mt-4">
               {logs.length === 0 ? 'No hay registros de auditoría aún' : 'No hay resultados que coincidan con los filtros'}
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left p-4 font-semibold text-gray-700">Fecha y Hora</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Usuario</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Módulo</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Acción</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Registro ID</th>
-                    <th className="text-left p-4 font-semibold text-gray-700">Detalles</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Fecha y Hora</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Usuario</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Módulo</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Acción</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Registro ID</th>
+                    <th className="text-left p-4 font-semibold text-gray-900">Detalles</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -261,12 +261,12 @@ export default function AuditLog() {
                       <td className="p-4 text-gray-900 font-medium whitespace-nowrap">
                         {formatearFecha(log.timestamp)}
                       </td>
-                      <td className="p-4 text-gray-600">
+                      <td className="p-4 text-slate-400">
                         <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-medium">
                           {log.userName || 'Sistema'}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-600">
+                      <td className="p-4 text-slate-400">
                         <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-medium">
                           {log.module}
                         </span>
@@ -277,15 +277,15 @@ export default function AuditLog() {
                           {getEtiquetaAccion(log.action)}
                         </span>
                       </td>
-                      <td className="p-4 text-gray-600 font-mono text-xs">
+                      <td className="p-4 text-gray-700 font-mono text-xs">
                         {log.recordId || '-'}
                       </td>
-                      <td className="p-4 text-gray-600">
+                      <td className="p-4 text-slate-400">
                         <details className="cursor-pointer">
                           <summary className="text-blue-600 hover:text-blue-800 font-medium">
                             Ver detalles
                           </summary>
-                          <div className="mt-2 p-3 bg-gray-50 rounded text-xs text-gray-700 font-mono whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                          <div className="mt-2 p-3 bg-gray-50 rounded text-xs text-gray-600 font-mono whitespace-pre-wrap break-words max-h-40 overflow-y-auto border border-gray-200">
                             {Object.keys(log.details || {}).length > 0 ? JSON.stringify(log.details, null, 2) : 'Sin detalles adicionales'}
                           </div>
                         </details>
@@ -308,3 +308,5 @@ export default function AuditLog() {
     </div>
   );
 }
+
+

@@ -874,7 +874,7 @@ export default function Descargo() {
     <>
       <Toast {...toast} onClose={hideToast} />
       
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-8">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="mb-8">
@@ -889,7 +889,7 @@ export default function Descargo() {
               className={`px-6 py-2 rounded-lg font-semibold transition-all ${
                 activeTab === 'descargo'
                   ? 'bg-blue-500 text-white shadow-lg'
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-blue-500'
+                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-blue-500'
               }`}
             >
               <Icon name="ClipboardOutline" size="sm" color={activeTab === 'descargo' ? 'white' : '#374151'} />
@@ -900,7 +900,7 @@ export default function Descargo() {
               className={`px-6 py-2 rounded-lg font-semibold transition-all ${
                 activeTab === 'descargos'
                   ? 'bg-green-500 text-white shadow-lg'
-                  : 'bg-white text-gray-700 border-2 border-gray-200 hover:border-green-500'
+                  : 'bg-gray-100 text-gray-700 border-2 border-gray-300 hover:border-green-500'
               }`}
             >
               <Icon name="CheckmarkDoneOutline" size="sm" color={activeTab === 'descargos' ? 'white' : '#374151'} />
@@ -913,7 +913,7 @@ export default function Descargo() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Panel de búsqueda y selección */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sticky top-24">
                   <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2"><Icon name="SearchOutline" size="sm" color="#0ea5e9" /> Seleccionar Asignación</h2>
 
                   {/* Búsqueda */}
@@ -923,7 +923,7 @@ export default function Descargo() {
                       placeholder="Buscar por nombre o usuario..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
+                      className="w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-900 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
                     />
                   </div>
 
@@ -951,7 +951,7 @@ export default function Descargo() {
                           className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
                             selectedAsignacion?.id === asignacion.id
                               ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-blue-300'
+                              : 'border-gray-300 hover:border-blue-300 bg-white'
                           }`}
                         >
                           <p className="font-semibold text-gray-900">{asignacion.nombre}</p>
@@ -967,7 +967,7 @@ export default function Descargo() {
               {/* Vista previa del PDF y Botones de acción */}
               <div className="lg:col-span-2">
                 {!selectedAsignacion ? (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex items-center justify-center min-h-96">
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 flex items-center justify-center min-h-96">
                     <div className="text-center">
                       <div className="mb-4 flex justify-center">
                         <Icon name="DocumentOutline" size="xl" color="#9ca3af" />
@@ -978,7 +978,7 @@ export default function Descargo() {
                 ) : (
                   <div className="space-y-4">
                     {/* Header con nombre y botones de acción */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                         <div>
                           <h3 className="text-2xl font-bold text-gray-900">{selectedAsignacion.nombre}</h3>
@@ -1014,7 +1014,7 @@ export default function Descargo() {
                           </button>
                           <button
                             onClick={() => setSelectedAsignacion(null)}
-                            className="px-4 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
+                            className="px-4 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-all flex items-center justify-center gap-2 whitespace-nowrap text-sm"
                           >
                             <Icon name="CloseOutline" size="sm" color="#374151" />
                             Cancelar
@@ -1024,7 +1024,7 @@ export default function Descargo() {
                     </div>
                     
                     {/* Vista previa del PDF */}
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                       <div className="bg-gray-50 rounded-lg p-4 max-h-screen overflow-y-auto border border-gray-200" style={{ height: '600px' }}>
                         <div ref={printRef} style={{ width: '100%' }}>
                           <DescargoPDFTemplate asignacion={selectedAsignacion} userPermissions={userPermissions} />
@@ -1037,7 +1037,7 @@ export default function Descargo() {
             </div>
           ) : (
             // Pestaña de Equipos Descargados
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Equipos Descargados</h2>
                 <div className="flex gap-3">
@@ -1073,7 +1073,7 @@ export default function Descargo() {
                   placeholder="Buscar equipos descargados..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-50"
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-50"
                 />
               </div>
 
@@ -1081,33 +1081,33 @@ export default function Descargo() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-gray-50 border-b-2 border-gray-200">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Usuario</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Código/Serial</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Marca</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Modelo</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">F. Asignación</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">F. Descargo</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Asignado Por</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Descargado Por</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Acciones</th>
+                    <tr className="bg-gray-100 border-b-2 border-gray-300">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Usuario</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Tipo</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Código/Serial</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Marca</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Modelo</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">F. Asignación</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">F. Descargo</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Asignado Por</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Descargado Por</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan="10" className="text-center py-4 text-gray-500">Cargando...</td>
+                        <td colSpan="10" className="text-center py-4 text-gray-600">Cargando...</td>
                       </tr>
                     ) : filteredDescargos.length === 0 ? (
                       <tr>
-                        <td colSpan="10" className="text-center py-4 text-gray-500">No hay equipos descargados</td>
+                        <td colSpan="10" className="text-center py-4 text-gray-600">No hay equipos descargados</td>
                       </tr>
                     ) : (
                       filteredDescargos.map((descargo, idx) => (
-                        <tr key={`${descargo.id}-${idx}`} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <tr key={`${descargo.id}-${idx}`} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">{descargo.nombre}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 flex items-center gap-2">
+                          <td className="px-4 py-3 text-sm text-gray-700 flex items-center gap-2">
                             {descargo.codActivoFijo ? (
                               <>
                                 <Icon name="LaptopOutline" size="sm" color="#6b7280" />
@@ -1120,21 +1120,21 @@ export default function Descargo() {
                               </>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-700">
                             {descargo.codActivoFijo || descargo.serialCelular}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-700">
                             {descargo.marca || descargo.marcaCelular || 'N/A'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
+                          <td className="px-4 py-3 text-sm text-gray-700">
                             {descargo.modelo || descargo.modeloCelular || 'N/A'}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{descargo.fechaAsignacion}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600 font-semibold text-green-600">
+                          <td className="px-4 py-3 text-sm text-gray-700">{descargo.fechaAsignacion}</td>
+                          <td className="px-4 py-3 text-sm font-semibold text-green-600">
                             {descargo.fechaDescargo}
                           </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{descargo.asignadoPor}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{descargo.usuarioDescargo}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{descargo.asignadoPor}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{descargo.usuarioDescargo}</td>
                           <td className="px-4 py-3 text-sm">
                             <button
                               onClick={() => handleDelete(descargo.id)}
@@ -1162,7 +1162,7 @@ export default function Descargo() {
       {/* Modal de confirmación PDF después de validar */}
       {showPDFModal && validatedAsignacion && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full mx-4 border border-gray-200">
             <div className="text-center mb-6">
               <div className="mb-2 flex justify-center">
                 <Icon name="CheckmarkCircleOutline" size="xl" color="#10b981" />
@@ -1174,7 +1174,7 @@ export default function Descargo() {
             </div>
 
             <div className="space-y-3 mb-6">
-              <p className="text-sm text-gray-700">¿Qué deseas hacer ahora?</p>
+              <p className="text-sm text-gray-600">¿Qué deseas hacer ahora?</p>
             </div>
 
             <div className="space-y-3">
@@ -1293,6 +1293,16 @@ function DescargoPDFTemplate({ asignacion, userPermissions }) {
       marca: asignacion.marcaCelular || '',
       serial: asignacion.serialCelular || '',
       especificaciones: asignacion.modeloCelular || '',
+    });
+  }
+
+  if (asignacion.accesorioId && asignacion.accesorioNombre) {
+    equipos.push({
+      tipo: 'Accesorio',
+      cantidad: '1',
+      marca: asignacion.marcaAccesorio || 'N/A',
+      serial: asignacion.codigoActivoFijoAccesorio || asignacion.accesorioNombre || '',
+      especificaciones: asignacion.tipoAccesorio || 'Accesorio',
     });
   }
 
@@ -1844,3 +1854,6 @@ function ReportePDFTemplate({ descargos }) {
     </div>
   );
 }
+
+
+

@@ -36,10 +36,11 @@ export default function EquiposDisponibles() {
   const { toast, showToast, hideToast } = useToastManager();
   const [equipos, setEquipos] = useState([]);
   const [celulares, setCelulares] = useState([]);
+  const [accesorios, setAccesorios] = useState([]);
   const [asignaciones, setAsignaciones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [tipoFiltro, setTipoFiltro] = useState('todos'); // 'todos', 'equipos', 'celulares'
+  const [tipoFiltro, setTipoFiltro] = useState('todos'); // 'todos', 'equipos', 'celulares', 'accesorios'
   const [tipoEspecifico, setTipoEspecifico] = useState(''); // Filtro para tipo específico de equipo o celular
   const [searchModelo, setSearchModelo] = useState(''); // Filtro por modelo
 
@@ -67,12 +68,21 @@ export default function EquiposDisponibles() {
         ...doc.data()
       }));
       
+      // Cargar accesorios
+      const accesoriosSnapshot = await getDocs(collection(db, 'accesorios'));
+      const accesoriosList = accesoriosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        tipo: 'accesorio',
+        ...doc.data()
+      }));
+      
       // Cargar asignaciones para identificar qué está asignado
       const asignacionesSnapshot = await getDocs(collection(db, 'asignaciones'));
       const asignacionesList = asignacionesSnapshot.docs.map(doc => doc.data());
       
       setEquipos(equiposList);
       setCelulares(celularesList);
+      setAccesorios(accesoriosList);
       setAsignaciones(asignacionesList);
       
     } catch (error) {
@@ -96,14 +106,22 @@ export default function EquiposDisponibles() {
     return !celular.asignado || celular.estado === 'disponible';
   });
 
+  // Obtener accesorios disponibles: usar el estado del accesorio como fuente de verdad
+  const accesoriosDisponibles = accesorios.filter(accesorio => {
+    // Un accesorio es disponible si NO está asignado según su estado en la tabla de accesorios
+    return !accesorio.asignado || accesorio.estado === 'disponible';
+  });
+
   // Filtrar según tipo seleccionado y tipo específico
   let dataFiltrada = [];
   if (tipoFiltro === 'todos') {
-    dataFiltrada = [...equiposDisponibles, ...celularesDisponibles];
+    dataFiltrada = [...equiposDisponibles, ...celularesDisponibles, ...accesoriosDisponibles];
   } else if (tipoFiltro === 'equipos') {
     dataFiltrada = equiposDisponibles;
   } else if (tipoFiltro === 'celulares') {
     dataFiltrada = celularesDisponibles;
+  } else if (tipoFiltro === 'accesorios') {
+    dataFiltrada = accesoriosDisponibles;
   }
 
   // Aplicar filtro de tipo específico
@@ -113,6 +131,8 @@ export default function EquiposDisponibles() {
         return item.tipoEquipo === tipoEspecifico;
       } else if (item.tipo === 'celular') {
         return item.marca === tipoEspecifico;
+      } else if (item.tipo === 'accesorio') {
+        return item.tipo === tipoEspecifico || item.marca === tipoEspecifico;
       }
       return false;
     });
@@ -170,6 +190,15 @@ export default function EquiposDisponibles() {
     { key: 'plan', label: 'Plan' },
   ];
 
+  // Columnas para accesorios
+  const columnasAccesorio = [
+    { key: 'codigo', label: 'Código' },
+    { key: 'tipo', label: 'Tipo' },
+    { key: 'marca', label: 'Marca' },
+    { key: 'modelo', label: 'Modelo' },
+    { key: 'condicion', label: 'Condición' },
+  ];
+
   // Seleccionar columnas según tipo
   let columnasAMostrar = [];
   if (tipoFiltro === 'todos') {
@@ -181,16 +210,20 @@ export default function EquiposDisponibles() {
     columnasAMostrar = columnasEquipo;
   } else if (tipoFiltro === 'celulares') {
     columnasAMostrar = columnasCelular;
+  } else if (tipoFiltro === 'accesorios') {
+    columnasAMostrar = columnasAccesorio;
   }
 
   const renderCell = (item, key) => {
     const value = item[key];
     if (key === 'tipo') {
-      return item.tipo === 'equipo' ? (
-        <Icon name="LaptopOutline" size="sm" color="#0ea5e9" />
-      ) : (
-        <Icon name="PhonePortraitOutline" size="sm" color="#10b981" />
-      );
+      if (item.tipo === 'equipo') {
+        return <Icon name="LaptopOutline" size="sm" color="#0ea5e9" />;
+      } else if (item.tipo === 'celular') {
+        return <Icon name="PhonePortraitOutline" size="sm" color="#10b981" />;
+      } else if (item.tipo === 'accesorio') {
+        return <Icon name="Hammer" size="sm" color="#818cf8" />;
+      }
     }
     return value || '-';
   };
@@ -205,6 +238,10 @@ export default function EquiposDisponibles() {
       // Obtener marcas únicas de celulares disponibles
       const marcas = new Set(celularesDisponibles.map(c => c.marca).filter(Boolean));
       return Array.from(marcas).sort();
+    } else if (tipoFiltro === 'accesorios') {
+      // Obtener marcas únicas de accesorios disponibles
+      const marcas = new Set(accesoriosDisponibles.map(a => a.marca).filter(Boolean));
+      return Array.from(marcas).sort();
     }
     return [];
   };
@@ -215,11 +252,13 @@ export default function EquiposDisponibles() {
   const getOpcionesModelo = () => {
     let dataBase = [];
     if (tipoFiltro === 'todos') {
-      dataBase = [...equiposDisponibles, ...celularesDisponibles];
+      dataBase = [...equiposDisponibles, ...celularesDisponibles, ...accesoriosDisponibles];
     } else if (tipoFiltro === 'equipos') {
       dataBase = equiposDisponibles;
     } else if (tipoFiltro === 'celulares') {
       dataBase = celularesDisponibles;
+    } else if (tipoFiltro === 'accesorios') {
+      dataBase = accesoriosDisponibles;
     }
 
     if (tipoEspecifico) {
@@ -227,6 +266,8 @@ export default function EquiposDisponibles() {
         if (item.tipo === 'equipo') {
           return item.tipoEquipo === tipoEspecifico;
         } else if (item.tipo === 'celular') {
+          return item.marca === tipoEspecifico;
+        } else if (item.tipo === 'accesorio') {
           return item.marca === tipoEspecifico;
         }
         return false;
@@ -258,7 +299,7 @@ export default function EquiposDisponibles() {
             'SO': item.so || '-',
             'Licencia': item.licencia || '-',
           };
-        } else {
+        } else if (item.tipo === 'celular') {
           return {
             'Tipo': 'Celular',
             'Marca': item.marca || '-',
@@ -269,6 +310,15 @@ export default function EquiposDisponibles() {
             'IMEI': item.imei || '-',
             'Número': item.numero || '-',
             'Plan': item.plan || '-',
+          };
+        } else if (item.tipo === 'accesorio') {
+          return {
+            'Tipo': 'Accesorio',
+            'Código': item.codigo || '-',
+            'Tipo de Accesorio': item.tipo || '-',
+            'Marca': item.marca || '-',
+            'Modelo': item.modelo || '-',
+            'Condición': item.condicion || '-',
           };
         }
       });
@@ -294,9 +344,9 @@ export default function EquiposDisponibles() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-100">
+      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-200">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Equipos Disponibles</h1>
           <p className="text-gray-600 text-base">Visualiza todos los equipos y celulares sin asignar</p>
@@ -316,24 +366,25 @@ export default function EquiposDisponibles() {
                 setTipoFiltro(e.target.value);
                 setTipoEspecifico(''); // Resetear filtro específico
               }}
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
             >
-              <option value="todos">Todos (Equipos y Celulares)</option>
+              <option value="todos">Todos (Equipos, Celulares y Accesorios)</option>
               <option value="equipos">Solo Equipos</option>
               <option value="celulares">Solo Celulares</option>
+              <option value="accesorios">Solo Accesorios</option>
             </select>
           </div>
 
           {/* Selector de Tipo Específico (dinámico) */}
-          {(tipoFiltro === 'equipos' || tipoFiltro === 'celulares') && (
+          {(tipoFiltro === 'equipos' || tipoFiltro === 'celulares' || tipoFiltro === 'accesorios') && (
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                {tipoFiltro === 'equipos' ? 'Seleccionar tipo de equipo' : 'Seleccionar marca de celular'}
+              <label className="block text-sm font-semibold text-gray-900 mb-2">
+                {tipoFiltro === 'equipos' ? 'Seleccionar tipo de equipo' : tipoFiltro === 'celulares' ? 'Seleccionar marca de celular' : 'Seleccionar marca de accesorio'}
               </label>
               <select
                 value={tipoEspecifico}
                 onChange={(e) => setTipoEspecifico(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
               >
                 <option value="">Ver todos</option>
                 {opcionesTipoEspecifico.map(tipo => (
@@ -352,7 +403,7 @@ export default function EquiposDisponibles() {
               <select
                 value={searchModelo}
                 onChange={(e) => setSearchModelo(e.target.value)}
-                className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white shadow-sm"
               >
                 <option value="">Ver todos</option>
                 {opcionesModelo.map(modelo => (
@@ -391,7 +442,7 @@ export default function EquiposDisponibles() {
         )}
 
         {/* Resumen de Disponibilidad */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-8">
           <div className="card-saas bg-blue-50 border-l-4 border-blue-400">
             <div className="flex items-center justify-between">
               <div>
@@ -429,6 +480,20 @@ export default function EquiposDisponibles() {
               <Icon name="PhonePortraitOutline" size="xl" color="#a855f7" />
             </div>
           </div>
+
+          <div className="card-saas bg-indigo-50 border-l-4 border-indigo-400">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-600 text-sm font-medium">Accesorios Disponibles</p>
+                <p className="text-3xl font-bold text-indigo-600">
+                  {tipoFiltro === 'todos' || tipoFiltro === 'accesorios'
+                    ? dataFiltrada.filter(d => d.tipo === 'accesorio').length
+                    : '-'}
+                </p>
+              </div>
+              <Icon name="Hammer" size="xl" color="#4f46e5" />
+            </div>
+          </div>
         </div>
 
         {/* Grid de Datos */}
@@ -458,7 +523,7 @@ export default function EquiposDisponibles() {
                     {columnasAMostrar.map(col => (
                       <th
                         key={col.key}
-                        className="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-xs font-semibold text-gray-900 uppercase tracking-wider"
                       >
                         {col.label}
                       </th>
@@ -504,7 +569,7 @@ export default function EquiposDisponibles() {
         {dataFiltrada.length > 0 && (
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
             <p className="text-sm text-blue-900">
-              <span className="font-semibold">Mostrando {dataFiltrada.length} de {equiposDisponibles.length + celularesDisponibles.length} equipos disponibles</span>
+              <span className="font-semibold">Mostrando {dataFiltrada.length} de {equiposDisponibles.length + celularesDisponibles.length + accesoriosDisponibles.length} equipos disponibles</span>
             </p>
           </div>
         )}
@@ -515,3 +580,5 @@ export default function EquiposDisponibles() {
     </div>
   );
 }
+
+

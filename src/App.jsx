@@ -1,5 +1,6 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Equipos from './pages/Equipos';
@@ -8,6 +9,7 @@ import Asignacion from './pages/Asignacion';
 import HojaEntrega from './pages/HojaEntrega';
 import Descargo from './pages/Descargo';
 import Celulares from './pages/Celulares';
+import Accesorios from './pages/Accesorios';
 import EquiposDisponibles from './pages/EquiposDisponibles';
 import IconShowcase from './pages/IconShowcase';
 import AdminPermisos from './pages/AdminPermisos';
@@ -38,8 +40,9 @@ function ProtectedRoute({ children }) {
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/*"
@@ -55,6 +58,7 @@ function App() {
                       <Route path="/nomenclaturas" element={<Nomenclaturas />} />
                       <Route path="/asignacion" element={<Asignacion />} />
                       <Route path="/equipos-disponibles" element={<EquiposDisponibles />} />
+                      <Route path="/accesorios" element={<Accesorios />} />
                       <Route path="/hoja-entrega" element={<HojaEntrega />} />
                       <Route path="/descargo" element={<Descargo />} />
                       <Route path="/admin-permisos" element={<AdminPermisos />} />
@@ -66,8 +70,9 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
-      </AuthProvider>
+          </Routes>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

@@ -520,7 +520,7 @@ export default function Celulares() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {showImportForm ? (
           // Vista con formulario de importación
-          <div className="card-saas-lg bg-white max-w-4xl mx-auto">
+          <div className="card-saas-lg bg-white max-w-4xl mx-auto border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-500 rounded-xl flex items-center justify-center text-lg">📥</div>
               Importar Celulares en Lote
@@ -549,7 +549,7 @@ export default function Celulares() {
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="Pega los celulares aquí&#10;Usa el formato: Tipo	Condición	Restricción	Serial	Marca	Modelo	IMEI	Número	Plan	Fecha Entrega"
                   rows="12"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all font-mono"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all font-mono"
                   required
                 />
                 <div className="mt-3 flex justify-between items-center">
@@ -605,7 +605,7 @@ export default function Celulares() {
           </div>
         ) : showForm ? (
           // Vista con formulario expandido
-          <div className="card-saas-lg bg-white max-w-3xl mx-auto">
+          <div className="card-saas-lg bg-white max-w-3xl mx-auto border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
               <Icon name="PhonePortraitOutline" size="lg" color="#16a34a" />
               {editingId ? 'Editar Celular' : 'Nuevo Celular'}
@@ -620,7 +620,7 @@ export default function Celulares() {
                     name="tipoEquipo"
                     value={formData.tipoEquipo}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   >
                     <option value="">Seleccionar tipo...</option>
@@ -636,7 +636,7 @@ export default function Celulares() {
                     name="condicion"
                     value={formData.condicion}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   >
                     <option value="">Seleccionar condición...</option>
@@ -660,7 +660,7 @@ export default function Celulares() {
                       onFocus={() => setShowRestriccionesDropdown(true)}
                       onBlur={() => setTimeout(() => setShowRestriccionesDropdown(false), 200)}
                       placeholder="Escribir o seleccionar..."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     />
                     
                     {showRestriccionesDropdown && (
@@ -670,7 +670,7 @@ export default function Celulares() {
                           .map(r => (
                             <div
                               key={r}
-                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 group"
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
                             >
                               <button
                                 type="button"
@@ -727,7 +727,7 @@ export default function Celulares() {
                     value={formData.serial}
                     onChange={handleChange}
                     placeholder="Serial del dispositivo"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   />
                 </div>
@@ -746,7 +746,7 @@ export default function Celulares() {
                       onFocus={() => setShowMarcasDropdown(true)}
                       onBlur={() => setTimeout(() => setShowMarcasDropdown(false), 200)}
                       placeholder="Escribir o seleccionar..."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                       required
                     />
                     
@@ -757,7 +757,7 @@ export default function Celulares() {
                           .map(m => (
                             <div
                               key={m}
-                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 group"
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
                             >
                               <button
                                 type="button"
@@ -814,7 +814,7 @@ export default function Celulares() {
                     value={formData.modelo}
                     onChange={handleChange}
                     placeholder="iPhone 14 Pro"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   />
                 </div>
@@ -830,7 +830,7 @@ export default function Celulares() {
                     value={formData.imei}
                     onChange={handleChange}
                     placeholder="359620098765432"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   />
                 </div>
@@ -843,7 +843,7 @@ export default function Celulares() {
                     value={formData.numero}
                     onChange={handleChange}
                     placeholder="+57 3XX XXX XXXX"
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   />
                 </div>
@@ -862,7 +862,7 @@ export default function Celulares() {
                       onFocus={() => setShowPlanesDropdown(true)}
                       onBlur={() => setTimeout(() => setShowPlanesDropdown(false), 200)}
                       placeholder="Escribir o seleccionar..."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                       required
                     />
                     
@@ -873,7 +873,7 @@ export default function Celulares() {
                           .map(p => (
                             <div
                               key={p}
-                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 group"
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
                             >
                               <button
                                 type="button"
@@ -929,7 +929,7 @@ export default function Celulares() {
                     name="fechaEntrega"
                     value={formData.fechaEntrega}
                     onChange={handleChange}
-                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                     required
                   />
                 </div>
@@ -967,7 +967,7 @@ export default function Celulares() {
           </div>
         ) : (
           // Vista normal con lista de celulares
-          <div className="card-saas-lg bg-white">
+          <div className="card-saas-lg bg-white border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Celulares Registrados</h2>
@@ -984,7 +984,7 @@ export default function Celulares() {
             </div>
 
             {/* Sección de filtros */}
-            <div className="bg-gray-50 rounded-2xl border-2 border-gray-100 p-6 mb-6">
+            <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-6 shadow-sm">
               <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
                 <Icon name="FunnelOutline" size="sm" color="#6b7280" />
                 Filtros
@@ -1079,7 +1079,7 @@ export default function Celulares() {
               </div>
               <button
                 onClick={handleLimpiarFiltros}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium flex items-center gap-1 transition-colors"
+                className="text-sm text-gray-600 hover:text-white font-medium flex items-center gap-1 transition-colors"
               >
                 <Icon name="CloseOutline" size="sm" color="#6b7280" />
                 Limpiar filtros
@@ -1101,7 +1101,7 @@ export default function Celulares() {
                   <Icon name="PhonePortraitOutline" size="xl" color="#9ca3af" />
                 </div>
                 <p className="text-gray-600 font-semibold">No hay celulares que coincidan con los filtros</p>
-                <p className="text-sm text-gray-500 mt-1">Intenta ajustar tus filtros de búsqueda</p>
+                <p className="text-sm text-gray-600 mt-1">Intenta ajustar tus filtros de búsqueda</p>
               </div>
             )}
 
@@ -1193,3 +1193,5 @@ export default function Celulares() {
     </div>
   );
 }
+
+

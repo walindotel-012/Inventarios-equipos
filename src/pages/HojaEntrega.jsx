@@ -345,9 +345,9 @@ export default function HojaEntrega() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-100">
+      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-200">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Módulo de Hoja de Entrega</h1>
           <p className="text-gray-600 text-base">Genera y descarga hojas de entrega de equipos en PDF</p>
@@ -370,7 +370,7 @@ export default function HojaEntrega() {
                   placeholder="Buscar por nombre o usuario..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
               </div>
 
@@ -394,7 +394,7 @@ export default function HojaEntrega() {
                       className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${
                         selectedAsignacion?.id === asignacion.id
                           ? 'border-blue-400 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-300'
+                          : 'border-gray-300 hover:border-blue-300 bg-white'
                       }`}
                     >
                       <p className="font-semibold text-gray-900">{asignacion.nombre}</p>

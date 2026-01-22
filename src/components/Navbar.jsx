@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../hooks/useTheme';
 import Icon from './Icon';
 
 export default function Navbar() {
   const { currentUser, logout, userPermissions } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [photoURL, setPhotoURL] = useState(null);
   const location = useLocation();
@@ -36,6 +38,7 @@ export default function Navbar() {
     { path: '/equipos', label: 'Equipos', icon: 'LaptopOutline', moduloId: 'equipos' },
     { path: '/celulares', label: 'Celulares', icon: 'PhonePortraitOutline', moduloId: 'celulares' },
     { path: '/equipos-disponibles', label: 'Disponibles', icon: 'CheckmarkCircleOutline', moduloId: 'equipos-disponibles' },
+    { path: '/accesorios', label: 'Accesorios', icon: 'BuildOutline', moduloId: 'accesorios' },
     { path: '/nomenclaturas', label: 'Nomenclaturas', icon: 'PersonOutline', moduloId: 'nomenclaturas' },
     { path: '/asignacion', label: 'Asignaciones', icon: 'LinkOutline', moduloId: 'asignacion' },
     { path: '/hoja-entrega', label: 'Entregas', icon: 'DocumentOutline', moduloId: 'hoja-entrega' },
@@ -121,6 +124,20 @@ export default function Navbar() {
 
               {/* Logout Button - Desktop */}
               <button
+                onClick={toggleTheme}
+                title={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                className="hidden sm:flex items-center justify-center p-2 rounded-xl hover:bg-gray-100 transition-all duration-200 text-gray-600 hover:text-gray-900"
+                aria-label="Cambiar tema"
+              >
+                {isDark ? (
+                  <Icon name="SunnyOutline" size="md" color="#f59e0b" />
+                ) : (
+                  <Icon name="MoonOutline" size="md" color="#6366f1" />
+                )}
+              </button>
+
+              {/* Logout Button - Desktop */}
+              <button
                 onClick={handleLogout}
                 className="hidden sm:flex px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-sm font-semibold transition-all duration-200 border border-red-200"
               >
@@ -200,6 +217,26 @@ export default function Navbar() {
 
               {/* Divider */}
               <div className="h-px bg-gray-100 my-3" />
+
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 hover:text-gray-900 text-sm font-medium transition-all duration-200"
+              >
+                {isDark ? (
+                  <>
+                    <Icon name="SunnyOutline" size="sm" color="#f59e0b" />
+                    <span>Cambiar a tema claro</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="MoonOutline" size="sm" color="#6366f1" />
+                    <span>Cambiar a tema oscuro</span>
+                  </>
+                )}
+              </button>
+
+              {/* Divider */}
 
               {/* Admin Panel */}
               {(userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com') && (

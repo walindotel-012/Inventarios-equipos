@@ -268,7 +268,7 @@ export default function AdminPermisos() {
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
         <div className="text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Icon name="LockClosedOutline" size="lg" color="#dc2626" />
@@ -286,7 +286,7 @@ export default function AdminPermisos() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
@@ -294,7 +294,7 @@ export default function AdminPermisos() {
             <h1 className="text-4xl font-bold text-gray-900 font-manrope">Gestión de Permisos</h1>
             <button
               onClick={() => setShowAddUser(true)}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors"
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-md"
             >
               <Icon name="AddOutline" size="md" color="white" />
               Agregar Usuario
@@ -306,13 +306,13 @@ export default function AdminPermisos() {
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
-            <Icon name="SearchOutline" size="md" color="gray" className="absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <Icon name="SearchOutline" size="md" color="#6b7280" className="absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por nombre o correo..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
             />
           </div>
         </div>
@@ -320,12 +320,12 @@ export default function AdminPermisos() {
         {/* Usuarios Grid */}
         {loading && !editingUserId ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">Cargando...</p>
+            <p className="text-gray-600">Cargando...</p>
           </div>
         ) : usuariosFiltrados.length === 0 ? (
           <div className="text-center py-12">
-            <Icon name="PeopleOutline" size="lg" color="gray" className="mx-auto mb-4" />
-            <p className="text-gray-500">No hay usuarios con esos criterios</p>
+            <Icon name="PeopleOutline" size="lg" color="#d1d5db" className="mx-auto mb-4" />
+            <p className="text-gray-600">No hay usuarios con esos criterios</p>
           </div>
         ) : (
           <div className="grid gap-6">
@@ -336,10 +336,10 @@ export default function AdminPermisos() {
               return (
                 <div
                   key={usuario.id}
-                  className="bg-white rounded-xl shadow-md overflow-hidden border-2 border-transparent hover:border-blue-200 transition-all"
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
                 >
                   {/* Usuario Header */}
-                  <div className="p-6 border-b-2 border-gray-100">
+                  <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
                     {isEditing ? (
                       <div className="space-y-4">
                         <div>
@@ -353,7 +353,7 @@ export default function AdminPermisos() {
                               ...prev,
                               [usuario.id]: { ...userPerms, email: e.target.value }
                             }))}
-                            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
                           />
                         </div>
                         <div>
@@ -367,7 +367,7 @@ export default function AdminPermisos() {
                               ...prev,
                               [usuario.id]: { ...userPerms, nombre: e.target.value }
                             }))}
-                            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
                           />
                         </div>
                         <div>
@@ -381,7 +381,7 @@ export default function AdminPermisos() {
                               ...prev,
                               [usuario.id]: { ...userPerms, departamento: e.target.value }
                             }))}
-                            className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
                           />
                         </div>
                       </div>
@@ -389,14 +389,14 @@ export default function AdminPermisos() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <Icon name="PersonOutline" size="md" color="primary" />
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                              <Icon name="PersonOutline" size="md" color="white" />
                             </div>
                             {usuario.nombre}
                           </h3>
                           <p className="text-gray-600 text-sm mt-1">{usuario.email}</p>
                           {userPerms.departamento && (
-                            <p className="text-gray-500 text-sm mt-1">
+                            <p className="text-gray-700 text-sm mt-1">
                               <span className="font-semibold">Departamento:</span> {userPerms.departamento}
                             </p>
                           )}
@@ -416,7 +416,7 @@ export default function AdminPermisos() {
                   <div className="p-6">
                     {/* Toggle Admin */}
                     <div className="mb-6">
-                      <label className="flex items-center gap-3 p-4 bg-red-50 rounded-lg border-2 border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
+                      <label className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
                         <input
                           type="checkbox"
                           checked={userPerms.isAdmin}
@@ -439,11 +439,11 @@ export default function AdminPermisos() {
                           {MODULOS_DISPONIBLES.map(modulo => (
                             <label
                               key={modulo.id}
-                              className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                              className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
                                 userPerms.modulos.includes(modulo.id)
-                                  ? 'bg-blue-50 border-blue-200'
+                                  ? 'bg-blue-50 border-blue-300'
                                   : 'bg-gray-50 border-gray-200'
-                              } ${isEditing ? 'cursor-pointer hover:border-blue-300' : 'cursor-not-allowed opacity-60'}`}
+                              } ${isEditing ? 'cursor-pointer hover:border-blue-400 hover:bg-blue-100' : 'cursor-not-allowed opacity-60'}`}
                             >
                               <input
                                 type="checkbox"
@@ -453,7 +453,7 @@ export default function AdminPermisos() {
                                 className="w-5 h-5 text-blue-600 rounded"
                               />
                               <div className="flex items-center gap-2">
-                                <Icon name={modulo.icon} size="sm" color={userPerms.modulos.includes(modulo.id) ? 'primary' : 'gray'} />
+                                <Icon name={modulo.icon} size="sm" color={userPerms.modulos.includes(modulo.id) ? '#2563eb' : '#9ca3af'} />
                                 <span className="font-medium text-gray-900">{modulo.nombre}</span>
                               </div>
                             </label>
@@ -464,7 +464,7 @@ export default function AdminPermisos() {
                   </div>
 
                   {/* Acciones */}
-                  <div className="p-6 bg-gray-50 border-t-2 border-gray-100 flex justify-end gap-3">
+                  <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
                     {isEditing ? (
                       <>
                         <button
@@ -472,14 +472,14 @@ export default function AdminPermisos() {
                             setEditingUserId(null);
                             loadUsuarios(); // Recargar para descartar cambios
                           }}
-                          className="px-6 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                          className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
                         >
                           Cancelar
                         </button>
                         <button
                           onClick={() => handleGuardarPermisos(usuario.id)}
                           disabled={loading}
-                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
                         >
                           <Icon name="CheckmarkOutline" size="sm" color="white" />
                           {loading ? 'Guardando...' : 'Guardar'}
@@ -489,7 +489,7 @@ export default function AdminPermisos() {
                       <>
                         <button
                           onClick={() => setEditingUserId(usuario.id)}
-                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
                         >
                           <Icon name="CreateOutline" size="sm" color="white" />
                           Editar
@@ -499,7 +499,7 @@ export default function AdminPermisos() {
                             setDeleteUserId(usuario.id);
                             setShowDeleteConfirm(true);
                           }}
-                          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
                         >
                           <Icon name="TrashOutline" size="sm" color="white" />
                           Eliminar
@@ -535,21 +535,21 @@ export default function AdminPermisos() {
         <>
           {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
             onClick={() => setShowAddUser(false)}
           />
 
           {/* Modal */}
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full animate-in scale-95">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full animate-in scale-95 border border-gray-200">
               {/* Header */}
-              <div className="p-6 border-b-2 border-gray-100 flex items-center justify-between">
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
                 <h2 className="text-2xl font-bold text-gray-900">Agregar Nuevo Usuario</h2>
                 <button
                   onClick={() => setShowAddUser(false)}
                   className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  <Icon name="CloseOutline" size="md" color="gray" />
+                  <Icon name="CloseOutline" size="md" color="#6b7280" />
                 </button>
               </div>
 
@@ -564,7 +564,7 @@ export default function AdminPermisos() {
                     value={newUserEmail}
                     onChange={(e) => setNewUserEmail(e.target.value)}
                     placeholder="usuario@ejemplo.com"
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
                   />
                 </div>
 
@@ -577,7 +577,7 @@ export default function AdminPermisos() {
                     value={newUserNombre}
                     onChange={(e) => setNewUserNombre(e.target.value)}
                     placeholder="Nombre completo"
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
                   />
                 </div>
 
@@ -590,23 +590,23 @@ export default function AdminPermisos() {
                     value={newUserDepartamento}
                     onChange={(e) => setNewUserDepartamento(e.target.value)}
                     placeholder="Ej: Ventas, IT, RRHH"
-                    className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
                   />
                 </div>
               </div>
 
               {/* Actions */}
-              <div className="p-6 bg-gray-50 border-t-2 border-gray-100 flex justify-end gap-3">
+              <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-2xl">
                 <button
                   onClick={() => setShowAddUser(false)}
-                  className="px-6 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                  className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={handleAgregarUsuario}
                   disabled={loading || !newUserEmail.trim()}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
                 >
                   <Icon name="CheckmarkOutline" size="sm" color="white" />
                   {loading ? 'Agregando...' : 'Agregar'}
@@ -618,9 +618,10 @@ export default function AdminPermisos() {
       , document.getElementById('portal') || document.body
       )}
 
+      {/* 
       {/* Danger Zone - Limpiar Base de Datos */}
-      <div className="mt-12 pt-8 border-t-2 border-gray-200">
-        <h2 className="text-lg font-bold text-gray-900 font-manrope mb-4">Zona de Peligro</h2>
+      {/*<div className="mt-12 pt-8 border-t-2 border-slate-700">
+        <h2 className="text-lg font-bold text-white font-manrope mb-4">Zona de Peligro</h2>
         <div className="card-saas bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -643,18 +644,18 @@ export default function AdminPermisos() {
       </div>
 
       {/* Clear Database Confirmation Modal */}
-      {showClearDatabaseConfirm && createPortal(
+      {/*{showClearDatabaseConfirm && createPortal(
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+          <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                 <Icon name="AlertCircleOutline" size="md" color="#991b1b" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">⚠️ Confirmar eliminación</h2>
+              <h2 className="text-xl font-bold text-white">⚠️ Confirmar eliminación</h2>
             </div>
             
-            <p className="text-gray-700 text-sm mb-2">Esta acción eliminará <span className="font-semibold">TODOS</span> los registros de:</p>
-            <ul className="text-gray-600 text-sm space-y-1 mb-6 pl-4">
+            <p className="text-slate-300 text-sm mb-2">Esta acción eliminará <span className="font-semibold">TODOS</span> los registros de:</p>
+            <ul className="text-slate-400 text-sm space-y-1 mb-6 pl-4">
               <li>• Equipos</li>
               <li>• Celulares</li>
               <li>• Nomenclaturas</li>
@@ -670,7 +671,7 @@ export default function AdminPermisos() {
               <button
                 onClick={() => setShowClearDatabaseConfirm(false)}
                 disabled={isClearing}
-                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 px-4 py-2 border-2 border-slate-600 text-slate-300 font-semibold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
               >
                 Cancelar
               </button>
@@ -686,9 +687,11 @@ export default function AdminPermisos() {
         </div>
       , document.getElementById('portal') || document.body
       )}
+      */}
 
       {/* Toast */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
     </div>
   );
 }
+

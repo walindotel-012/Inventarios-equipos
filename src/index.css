@@ -207,3 +207,82 @@ body {
   }
 }
 
+/* Dark Mode Styles */
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  @apply bg-gray-950 text-gray-100;
+}
+
+html.dark {
+  --color-gray-50: #0f172a;
+  --color-gray-100: #1e293b;
+  --color-gray-200: #334155;
+  --color-gray-300: #475569;
+  --color-gray-400: #64748b;
+  --color-gray-500: #78909c;
+  --color-gray-600: #94a3b8;
+  --color-gray-700: #cbd5e1;
+  --color-gray-800: #e2e8f0;
+  --color-gray-900: #f1f5f9;
+}
+
+/* Dark mode for components */
+html.dark .bg-white {
+  @apply bg-gray-900;
+}
+
+html.dark .bg-gray-50 {
+  @apply bg-gray-900;
+}
+
+html.dark .bg-gray-100 {
+  @apply bg-gray-800;
+}
+
+html.dark .bg-gray-200 {
+  @apply bg-gray-700;
+}
+
+html.dark .text-gray-900 {
+  @apply text-gray-100;
+}
+
+html.dark .text-gray-800 {
+  @apply text-gray-200;
+}
+
+html.dark .text-gray-700 {
+  @apply text-gray-300;
+}
+
+html.dark .text-gray-600 {
+  @apply text-gray-400;
+}
+
+html.dark .border-gray-100 {
+  @apply border-gray-700;
+}
+
+html.dark .border-gray-200 {
+  @apply border-gray-700;
+}
+
+html.dark .border-gray-300 {
+  @apply border-gray-600;
+}
+
+html.dark .hover\:bg-gray-50:hover {
+  @apply bg-gray-800;
+}
+
+html.dark .hover\:bg-gray-100:hover {
+  @apply bg-gray-800;
+}
+
+html.dark .focus\:ring-blue-400:focus {
+  @apply ring-blue-600;
+}
+

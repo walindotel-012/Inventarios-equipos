@@ -213,7 +213,7 @@ export default function Nomenclaturas() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-100">
+      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-200">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Gestión de Colaboradores</h1>
@@ -242,15 +242,15 @@ export default function Nomenclaturas() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {showImportForm ? (
           // Vista con formulario de importación
-          <div className="card-saas-lg bg-white max-w-2xl mx-auto">
+          <div className="card-saas-lg bg-white max-w-2xl mx-auto border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl flex items-center justify-center text-lg">📥</div>
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center text-lg text-white">📥</div>
               Importar Nomenclaturas en Lote
             </h2>
 
-            <form onSubmit={handleImportNomenclaturas} className="space-y-6">
+            <form onSubmit={handleImportNomenclaturas} className="space-y-6 p-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Nomenclaturas (una por línea)
                 </label>
                 <textarea
@@ -258,7 +258,7 @@ export default function Nomenclaturas() {
                   onChange={(e) => setImportText(e.target.value)}
                   placeholder="Pega las nomenclaturas aquí, una por línea&#10;Ejemplo:&#10;AUVECRFOLABE01&#10;AUVEASFALABE01&#10;AUFIGELABE01"
                   rows="12"
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all font-mono"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all font-mono bg-white shadow-sm"
                   required
                 />
                 <div className="mt-3 flex justify-between items-center">
@@ -314,7 +314,7 @@ export default function Nomenclaturas() {
           </div>
         ) : showForm ? (
           // Vista con formulario expandido
-          <div className="card-saas-lg bg-white max-w-md mx-auto">
+          <div className="card-saas-lg bg-white max-w-md mx-auto border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-500 rounded-xl flex items-center justify-center text-lg">🏷️</div>
               {editingId ? 'Editar Colaborador' : 'Nuevo Colaborador'}
@@ -334,7 +334,7 @@ export default function Nomenclaturas() {
                   className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-all ${
                     charCount > MAX_CHARS
                       ? 'border-red-500 bg-red-50 focus:ring-red-400'
-                      : 'border-gray-200 focus:ring-purple-400'
+                      : 'border-gray-300 focus:ring-purple-400'
                   }`}
                   required
                 />
@@ -392,11 +392,11 @@ export default function Nomenclaturas() {
           </div>
         ) : (
           // Vista normal con lista
-          <div className="card-saas-lg bg-white">
+          <div className="card-saas-lg bg-white border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-bold text-gray-900">Colaboradores Registrados</h2>
-                <p className="text-sm text-gray-500 mt-1">{nomenclaturas.length} colaborador{nomenclaturas.length !== 1 ? 'es' : ''}</p>
+                <p className="text-sm text-gray-600 mt-1">{nomenclaturas.length} colaborador{nomenclaturas.length !== 1 ? 'es' : ''}</p>
               </div>
             </div>
 
@@ -413,7 +413,7 @@ export default function Nomenclaturas() {
               <div className="p-12 text-center">
                 <div className="text-5xl mb-4">👥</div>
                 <p className="text-gray-600 font-semibold">No hay colaboradores registrados aún</p>
-                <p className="text-sm text-gray-500 mt-1">Crea tu primer colaborador para empezar</p>
+                <p className="text-sm text-gray-600 mt-1">Crea tu primer colaborador para empezar</p>
               </div>
             )}
 
@@ -422,7 +422,7 @@ export default function Nomenclaturas() {
                 {nomenclaturas.map(nom => (
                   <div
                     key={nom.id}
-                    className="border-2 border-gray-100 rounded-2xl p-4 hover:border-purple-200 hover:shadow-md transition-all"
+                    className="border-2 border-gray-300 rounded-2xl p-4 hover:border-purple-200 hover:shadow-md transition-all bg-white shadow-sm"
                   >
                     <div className="flex justify-between items-start gap-3">
                       <div className="flex-1 min-w-0">
@@ -435,7 +435,7 @@ export default function Nomenclaturas() {
                         <p className="text-xs text-gray-600 mt-2">
                           Por: {nom.registradoPor}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-600 mt-1">
                           {nom.fechaRegistro?.toDate?.()?.toLocaleDateString?.('es-ES') ||
                             'N/A'}
                         </p>
@@ -476,3 +476,5 @@ export default function Nomenclaturas() {
     </div>
   );
 }
+
+

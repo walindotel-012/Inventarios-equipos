@@ -13,6 +13,7 @@ export default function Dashboard() {
     celulares: 0,
     nomenclaturas: 0,
     asignaciones: 0,
+    accesorios: 0,
     disponibles: 0,
     entregas: 0,
     descargos: 0
@@ -37,6 +38,7 @@ export default function Dashboard() {
       const celularesSnapshot = await getDocs(collection(db, 'celulares'));
       const nomenclaturaSnapshot = await getDocs(collection(db, 'nomenclaturas'));
       const asignacionesSnapshot = await getDocs(collection(db, 'asignaciones'));
+      const accesoriosSnapshot = await getDocs(collection(db, 'accesorios'));
       const descargosSnapshot = await getDocs(collection(db, 'descargos'));
 
       const equiposList = equiposSnapshot.docs.map(doc => doc.data());
@@ -58,6 +60,7 @@ export default function Dashboard() {
         celulares: celularesList.length,
         nomenclaturas: nomenclaturaSnapshot.size,
         asignaciones: asignacionesSnapshot.size,
+        accesorios: accesoriosSnapshot.size,
         disponibles: totalDisponibles,
         entregas: entregasCount,
         descargos: descargosSnapshot.size
@@ -97,6 +100,7 @@ export default function Dashboard() {
     { title: 'Celulares', value: stats.celulares, icon: 'PhonePortraitOutline', bg: 'bg-green-50', textColor: 'text-green-600', gradStart: '#34d399', gradEnd: '#10b981', path: '/celulares', moduloId: 'celulares' },
     { title: 'Nomenclaturas', value: stats.nomenclaturas, icon: 'PeopleOutline', bg: 'bg-purple-50', textColor: 'text-purple-600', gradStart: '#c084fc', gradEnd: '#a855f7', path: '/nomenclaturas', moduloId: 'nomenclaturas' },
     { title: 'Asignaciones', value: stats.asignaciones, icon: 'LinkOutline', bg: 'bg-yellow-50', textColor: 'text-yellow-600', gradStart: '#fcd34d', gradEnd: '#f59e0b', path: '/asignacion', moduloId: 'asignacion' },
+    { title: 'Accesorios', value: stats.accesorios, icon: 'Hammer', bg: 'bg-indigo-50', textColor: 'text-indigo-600', gradStart: '#818cf8', gradEnd: '#6366f1', path: '/accesorios', moduloId: 'accesorios' },
     { title: 'Disponibles', value: stats.disponibles, icon: 'CheckmarkCircleOutline', bg: 'bg-pink-50', textColor: 'text-pink-600', gradStart: '#f472b6', gradEnd: '#ec4899', path: '/equipos-disponibles', moduloId: 'equipos-disponibles' },
     { title: 'Entregas', value: stats.entregas, icon: 'DocumentOutline', bg: 'bg-orange-50', textColor: 'text-orange-600', gradStart: '#fb923c', gradEnd: '#f97316', path: '/hoja-entrega', moduloId: 'hoja-entrega' },
     { title: 'Descargos', value: stats.descargos, icon: 'TrashOutline', bg: 'bg-red-50', textColor: 'text-red-600', gradStart: '#f87171', gradEnd: '#ef4444', path: '/descargo', moduloId: 'descargo' },
@@ -106,6 +110,7 @@ export default function Dashboard() {
   const allQuickActions = [
     { id: 'equipos', path: '/equipos?form=true', title: 'Registrar Equipo', description: 'Agregar nuevo dispositivo', icon: 'AddOutline', bg: 'bg-blue-100', color: 'primary', hoverColor: 'bg-blue-200', borderColor: 'hover:border-blue-300' },
     { id: 'celulares', path: '/celulares?form=true', title: 'Registrar Celular', description: 'Agregar nuevo teléfono', icon: 'AddOutline', bg: 'bg-green-100', color: '#10b981', hoverColor: 'bg-green-200', borderColor: 'hover:border-green-300' },
+    { id: 'accesorios', path: '/accesorios?form=true', title: 'Registrar Accesorio', description: 'Agregar nuevo accesorio', icon: 'AddOutline', bg: 'bg-indigo-100', color: '#6366f1', hoverColor: 'bg-indigo-200', borderColor: 'hover:border-indigo-300' },
     { id: 'asignacion', path: '/asignacion?form=true', title: 'Registrar Asignación', description: 'Vincular bienes a usuarios', icon: 'AddOutline', bg: 'bg-purple-100', color: '#a855f7', hoverColor: 'bg-purple-200', borderColor: 'hover:border-purple-300' },
   ];
 

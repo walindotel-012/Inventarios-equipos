@@ -27,6 +27,7 @@ export default function Asignacion() {
   const [equipos, setEquipos] = useState([]);
   const [celulares, setCelulares] = useState([]);
   const [nomenclaturas, setNomenclaturas] = useState([]);
+  const [accesorios, setAccesorios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(searchParams.get('form') === 'true');
   const [editingId, setEditingId] = useState(null);
@@ -44,6 +45,8 @@ export default function Asignacion() {
   const [showEquipoDropdown, setShowEquipoDropdown] = useState(false);
   const [showEquipoSecundarioDropdown, setShowEquipoSecundarioDropdown] = useState(false);
   const [showCelularDropdown, setShowCelularDropdown] = useState(false);
+  const [showAccesorioDropdown, setShowAccesorioDropdown] = useState(false);
+  const [searchAccesorio, setSearchAccesorio] = useState('');
   const [searchEquipoPrincipal, setSearchEquipoPrincipal] = useState('');
   const [searchEquipoSec, setSearchEquipoSec] = useState('');
   const [searchCelularField, setSearchCelularField] = useState('');
@@ -98,6 +101,14 @@ export default function Asignacion() {
     planCelular: '',
     tipoEquipoCelular: '',
     fechaAsignacionCelular: '',
+    // Accesorios
+    accesorioId: '',
+    accesorioNombre: '',
+    codigoActivoFijoAccesorio: '',
+    tipoAccesorio: '',
+    marcaAccesorio: '',
+    modeloAccesorio: '',
+    condicionAccesorio: '',
     observaciones: '',
   });
 
@@ -151,12 +162,25 @@ export default function Asignacion() {
       }
     });
 
+    const unsubscribeAccesorios = onSnapshot(collection(db, 'accesorios'), (snapshot) => {
+      try {
+        const accesoriosList = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setAccesorios(accesoriosList);
+      } catch (error) {
+        console.error('Error en listener de accesorios:', error);
+      }
+    });
+
     // Limpiar listeners al desmontar
     return () => {
       unsubscribeAsignaciones();
       unsubscribeEquipos();
       unsubscribeCelulares();
       unsubscribeNomenclaturas();
+      unsubscribeAccesorios();
     };
   }, []);
 
@@ -176,6 +200,31 @@ export default function Asignacion() {
       }
     }
   }, [asignaciones, editingId]);
+
+  // Migración automática de observaciones al cargar asignaciones
+  useEffect(() => {
+    if (asignaciones.length > 0) {
+      const asignacionesSinObservaciones = asignaciones.filter(a => !a.observaciones);
+      
+      if (asignacionesSinObservaciones.length > 0) {
+        // Ejecutar migración silenciosa en segundo plano
+        const migrarAutomaticamente = async () => {
+          try {
+            for (const asignacion of asignacionesSinObservaciones) {
+              await updateDoc(doc(db, 'asignaciones', asignacion.id), {
+                observaciones: ''
+              });
+            }
+            console.log(`✅ ${asignacionesSinObservaciones.length} asignaciones migraron automáticamente el campo observaciones`);
+          } catch (error) {
+            console.error('Error en migración automática:', error);
+          }
+        };
+        
+        migrarAutomaticamente();
+      }
+    }
+  }, []);
 
   const handleEquipoChange = async (snValue) => {
     if (!snValue) {
@@ -273,6 +322,36 @@ export default function Asignacion() {
     }
   };
 
+  const handleAccesorioChange = (accesorioId) => {
+    if (!accesorioId) {
+      setFormData(prev => ({
+        ...prev,
+        accesorioId: '',
+        accesorioNombre: '',
+        codigoActivoFijoAccesorio: '',
+        tipoAccesorio: '',
+        marcaAccesorio: '',
+        modeloAccesorio: '',
+        condicionAccesorio: '',
+      }));
+      return;
+    }
+
+    const accesorio = accesorios.find(a => a.id === accesorioId);
+    if (accesorio) {
+      setFormData(prev => ({
+        ...prev,
+        accesorioId: accesorioId,
+        accesorioNombre: `${accesorio.codigoActivoFijo} - ${accesorio.tipoAccesorio}`,
+        codigoActivoFijoAccesorio: accesorio.codigoActivoFijo || '',
+        tipoAccesorio: accesorio.tipoAccesorio || '',
+        marcaAccesorio: accesorio.marca || '',
+        modeloAccesorio: accesorio.modelo || '',
+        condicionAccesorio: accesorio.condicion || '',
+      }));
+    }
+  };
+
   const handleEquipoSecundarioChange = async (snValue) => {
     if (!snValue) {
       setFormData(prev => ({
@@ -328,6 +407,49 @@ export default function Asignacion() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleMigrarObservaciones = async () => {
+    const asignacionesSinObservaciones = asignaciones.filter(a => !a.observaciones);
+    
+    if (asignacionesSinObservaciones.length === 0) {
+      showToast('Todas las asignaciones ya tienen el campo observaciones', 'info');
+      return;
+    }
+
+    const confirmMigrate = window.confirm(
+      `Se migrarán ${asignacionesSinObservaciones.length} asignación${asignacionesSinObservaciones.length !== 1 ? 'es' : ''} para agregar el campo observaciones.\n\n¿Deseas proceder?`
+    );
+
+    if (!confirmMigrate) {
+      showToast('Migración cancelada', 'warning');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let migraciones = 0;
+      let errores = 0;
+
+      for (const asignacion of asignacionesSinObservaciones) {
+        try {
+          await updateDoc(doc(db, 'asignaciones', asignacion.id), {
+            observaciones: ''
+          });
+          migraciones++;
+        } catch (error) {
+          console.error('Error migrando asignación:', error);
+          errores++;
+        }
+      }
+
+      showToast(`${migraciones} asignación${migraciones !== 1 ? 'es' : ''} migrada${migraciones !== 1 ? 's' : ''} exitosamente`, 'success');
+    } catch (error) {
+      console.error('Error en migración:', error);
+      showToast('Error durante la migración', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleUpdateCodigosActivos = async () => {
@@ -700,6 +822,14 @@ export default function Asignacion() {
         setSearchCelularField(`${celular.serial} - ${celular.marca} ${celular.modelo}`);
       }
     }
+
+    // Accesorio
+    if (asignacionActualizada.accesorioId) {
+      const accesorio = accesorios.find(a => a.id === asignacionActualizada.accesorioId);
+      if (accesorio) {
+        setSearchAccesorio(`${accesorio.codigoActivoFijo} - ${accesorio.tipoAccesorio}`);
+      }
+    }
     
     setEditingId(asignacion.id);
     setShowForm(true);
@@ -712,9 +842,11 @@ export default function Asignacion() {
     setSearchEquipoPrincipal('');
     setSearchEquipoSec('');
     setSearchCelularField('');
+    setSearchAccesorio('');
     setShowEquipoDropdown(false);
     setShowEquipoSecundarioDropdown(false);
     setShowCelularDropdown(false);
+    setShowAccesorioDropdown(false);
     setFormData({
       sucursal: '',
       oficina: '',
@@ -751,6 +883,14 @@ export default function Asignacion() {
       planCelular: '',
       tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
+      // Accesorios
+      accesorioId: '',
+      accesorioNombre: '',
+      codigoActivoFijoAccesorio: '',
+      tipoAccesorio: '',
+      marcaAccesorio: '',
+      modeloAccesorio: '',
+      condicionAccesorio: '',
       observaciones: '',
     });
   };
@@ -760,9 +900,11 @@ export default function Asignacion() {
     setSearchEquipoPrincipal('');
     setSearchEquipoSec('');
     setSearchCelularField('');
+    setSearchAccesorio('');
     setShowEquipoDropdown(false);
     setShowEquipoSecundarioDropdown(false);
     setShowCelularDropdown(false);
+    setShowAccesorioDropdown(false);
     setFormData({
       sucursal: '',
       oficina: '',
@@ -799,6 +941,14 @@ export default function Asignacion() {
       planCelular: '',
       tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
+      // Accesorios
+      accesorioId: '',
+      accesorioNombre: '',
+      codigoActivoFijoAccesorio: '',
+      tipoAccesorio: '',
+      marcaAccesorio: '',
+      modeloAccesorio: '',
+      condicionAccesorio: '',
       observaciones: '',
     });
     setEditingId(null);
@@ -1127,27 +1277,37 @@ export default function Asignacion() {
       return;
     }
 
-    const dataExport = asignacionesFiltradas.map(asignacion => ({
-      'Sucursal': asignacion.sucursal,
-      'Oficina': asignacion.oficina,
-      'Puesto': asignacion.puesto,
-      'Nombre': asignacion.nombre,
-      'Usuario': asignacion.usuario,
-      'Empresa': asignacion.empresa,
-      'Equipo': `${asignacion.marca || ''} ${asignacion.modelo || ''}`.trim(),
-      'S/N': asignacion.sn || '',
-      'Código Activo': asignacion.codActivoFijo || '',
-      'NetBios': asignacion.netbiosName || '',
-      'Disco': asignacion.disco || '',
-      'Memoria': asignacion.memoria || '',
-      'Procesador': asignacion.procesador || '',
-      'SO': asignacion.so || '',
-      'Licencia': asignacion.licencia || '',
-      'Fecha Asignación': asignacion.fechaAsignacion,
-      'Asignado Por': asignacion.asignadoPor,
-      'Observaciones': asignacion.observaciones || '',
-      'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
-    }));
+    const dataExport = asignacionesFiltradas.map(asignacion => {
+      const equipoCompleto = `${asignacion.marca || ''} ${asignacion.modelo || ''}`.trim();
+      const observacionesDefault = equipoCompleto ? `Entrega de ${equipoCompleto} con su cargador original y mochila.` : 'Entrega de equipo con su cargador original y mochila.';
+      
+      return {
+        'Sucursal': asignacion.sucursal,
+        'Oficina': asignacion.oficina,
+        'Puesto': asignacion.puesto,
+        'Nombre': asignacion.nombre,
+        'Usuario': asignacion.usuario,
+        'Empresa': asignacion.empresa,
+        'Equipo': equipoCompleto,
+        'S/N': asignacion.sn || '',
+        'Código Activo': asignacion.codActivoFijo || '',
+        'NetBios': asignacion.netbiosName || '',
+        'Disco': asignacion.disco || '',
+        'Memoria': asignacion.memoria || '',
+        'Procesador': asignacion.procesador || '',
+        'SO': asignacion.so || '',
+        'Licencia': asignacion.licencia || '',
+        'Accesorio Código': asignacion.codigoActivoFijoAccesorio || '',
+        'Accesorio Tipo': asignacion.tipoAccesorio || '',
+        'Accesorio Marca': asignacion.marcaAccesorio || '',
+        'Accesorio Modelo': asignacion.modeloAccesorio || '',
+        'Accesorio Condición': asignacion.condicionAccesorio || '',
+        'Observaciones': asignacion.observaciones || observacionesDefault,
+        'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
+        'Fecha Asignación': asignacion.fechaAsignacion,
+        'Asignado Por': asignacion.asignadoPor,
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(dataExport);
     const wb = XLSX.utils.book_new();
@@ -1157,7 +1317,8 @@ export default function Asignacion() {
       { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
       { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
       { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
-      { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 25 }
+      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+      { wch: 15 }, { wch: 20 }, { wch: 25 }
     ];
     ws['!cols'] = columnWidths;
 
@@ -1219,6 +1380,7 @@ export default function Asignacion() {
       'Condición Celular': asignacion.condicionCelular || 'N/A',
       'Restricción': asignacion.restriccionCelular || 'N/A',
       'Plan': asignacion.planCelular || 'N/A',
+      'Accesorio': asignacion.accesorioNombre || 'N/A',
       'Observaciones': asignacion.observaciones,
       'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
     }));
@@ -1234,7 +1396,7 @@ export default function Asignacion() {
       { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
       { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 },
       { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-      { wch: 20 }, { wch: 40 }
+      { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 40 }
     ];
     ws['!cols'] = columnWidths;
 
@@ -1280,6 +1442,14 @@ export default function Asignacion() {
                 <Icon name="BarChartOutline" size="sm" color="#6b7280" />
                 Export Celulares
               </button>
+              <button
+                onClick={handleMigrarObservaciones}
+                className="btn-secondary gap-2 text-sm hidden"
+                title="Migra el campo observaciones a todas las asignaciones antiguas"
+              >
+                <span className="text-base">🔄</span>
+                Migrar Observaciones
+              </button>
            
               <button
                 onClick={handleNueva}
@@ -1295,7 +1465,7 @@ export default function Asignacion() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {showImportForm ? (
-          <div className="card-saas-lg bg-white">
+          <div className="card-saas-lg bg-white border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-8 flex items-center gap-3">
               <span className="text-3xl">📥</span>
               Importar Asignaciones en Lote
@@ -1303,8 +1473,8 @@ export default function Asignacion() {
 
             <div className="bg-blue-50 rounded-2xl border-2 border-blue-100 p-6 mb-8">
               <h3 className="font-semibold text-gray-900 mb-4">📋 Formato Esperado (Tab-separated):</h3>
-              <div className="bg-white rounded-lg p-4 font-mono text-xs md:text-sm overflow-x-auto mb-4">
-                <div className="text-gray-600">
+              <div className="bg-gray-100 rounded-lg p-4 font-mono text-xs md:text-sm overflow-x-auto mb-4">
+                <div className="text-gray-700">
                   Sucursal<span className="text-purple-600">⇥</span>
                   Oficina<span className="text-purple-600">⇥</span>
                   Departamento<span className="text-purple-600">⇥</span>
@@ -1385,100 +1555,100 @@ export default function Asignacion() {
             </form>
           </div>
         ) : showForm ? (
-          <div className="card-saas-lg bg-white">
+          <div className="card-saas-lg bg-white border border-gray-200 shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-8 flex items-center gap-3">
               <Icon name="DocumentOutline" size="lg" color="#0ea5e9" />
               {editingId ? 'Editar Asignación' : 'Nueva Asignación'}
             </h2>
 
             <form onSubmit={handleSubmit} className="space-y-8">
-              <div className="bg-blue-50 rounded-2xl border-2 border-blue-100 p-6">
+              <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl border-2 border-blue-100 dark:border-blue-900 p-6">
                 <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
                   <span className="text-2xl">👤</span> Datos del Colaborador
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Empresa *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Empresa *</label>
                     <input
                       type="text"
                       name="empresa"
                       value={formData.empresa}
                       onChange={handleChange}
                       placeholder="AUTOMÍA SAS"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del Colaborador *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Nombre del Colaborador *</label>
                     <input
                       type="text"
                       name="nombre"
                       value={formData.nombre}
                       onChange={handleChange}
                       placeholder="Ej: Juan Pérez"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Posición/Puesto *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Posición/Puesto *</label>
                     <input
                       type="text"
                       name="puesto"
                       value={formData.puesto}
                       onChange={handleChange}
                       placeholder="Ej: Jefe de Taller"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Departamento/Sucursal *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Departamento/Sucursal *</label>
                     <input
                       type="text"
                       name="sucursal"
                       value={formData.sucursal}
                       onChange={handleChange}
                       placeholder="Ej: Potencia"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Oficina *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Oficina *</label>
                     <input
                       type="text"
                       name="oficina"
                       value={formData.oficina}
                       onChange={handleChange}
                       placeholder="Ej: Principal"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Usuario *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Usuario *</label>
                     <input
                       type="text"
                       name="usuario"
                       value={formData.usuario}
                       onChange={handleChange}
                       placeholder="Ej: jperez"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-green-50 rounded-2xl border-2 border-green-100 p-6">
+              <div className="bg-green-50 dark:bg-green-900/20 rounded-2xl border-2 border-green-100 dark:border-green-900 p-6">
                 <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
                   <span className="text-2xl">💻</span> Equipo Principal (Laptop)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Serial del Equipo (S/N)</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1487,19 +1657,17 @@ export default function Asignacion() {
                         onFocus={() => setShowEquipoDropdown(true)}
                         onBlur={() => setTimeout(() => setShowEquipoDropdown(false), 200)}
                         placeholder="Escribir o buscar serial..."
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
                       />
                       
                       {showEquipoDropdown && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                           {equipos
                             .filter(eq => {
                               const isCurrentlyAssigned = formData.sn === eq.sn;
                               const isAvailable = !eq.asignado || eq.estado === 'disponible';
                               const matchesSearch = `${eq.sn} - ${eq.marca} ${eq.modelo}`.toLowerCase().includes(searchEquipoPrincipal.toLowerCase());
                               
-                              // Si estamos editando, mostrar también equipos que pueden estar asignados a otras asignaciones
-                              // excepto a esta misma asignación
                               if (editingId && isCurrentlyAssigned) {
                                 return matchesSearch;
                               }
@@ -1515,10 +1683,10 @@ export default function Asignacion() {
                                   handleEquipoChange(eq.sn);
                                   setShowEquipoDropdown(false);
                                 }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                                className="w-full text-left px-4 py-2.5 hover:bg-green-50 dark:hover:bg-green-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
                               >
-                                <div className="font-semibold text-gray-900">{eq.sn}</div>
-                                <div className="text-xs text-gray-600">{eq.marca} {eq.modelo}</div>
+                                <div className="font-semibold text-gray-900 dark:text-gray-100">{eq.sn}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">{eq.marca} {eq.modelo}</div>
                               </button>
                             ))}
                           {searchEquipoPrincipal && equipos.filter(eq => {
@@ -1532,41 +1700,53 @@ export default function Asignacion() {
                             
                             return matchesSearch && isAvailable;
                           }).length === 0 && (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                              No se encontraron equipos
+                            <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                              No se encontraron equipos disponibles
                             </div>
                           )}
                         </div>
                       )}
+                      {formData.equipo && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchEquipoPrincipal('');
+                            handleEquipoChange('');
+                          }}
+                          className="mt-2 w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Icon name="trash" /> Quitar equipo
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Código Activo Fijo</label>
-                    <input type="text" value={formData.codActivoFijo} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Código Activo Fijo</label>
+                    <input type="text" value={formData.codActivoFijo} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Marca</label>
-                    <input type="text" value={formData.marca} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Marca</label>
+                    <input type="text" value={formData.marca} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Modelo</label>
-                    <input type="text" value={formData.modelo} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Modelo</label>
+                    <input type="text" value={formData.modelo} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Equipo</label>
-                    <input type="text" value={formData.tipoEquipo} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Tipo de Equipo</label>
+                    <input type="text" value={formData.tipoEquipo} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Condición</label>
-                    <input type="text" value={formData.condicion} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Condición</label>
+                    <input type="text" value={formData.condicion} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">NetBios Name</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">NetBios Name</label>
                     <select
                       name="netbiosName"
                       value={formData.netbiosName}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
                       <option value="">Seleccionar...</option>
                       {nomenclaturas
@@ -1585,24 +1765,24 @@ export default function Asignacion() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Asignación</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Fecha de Asignación</label>
                     <input
                       type="date"
                       name="fechaAsignacion"
                       value={formData.fechaAsignacion}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
                 </div>
                 {formData.equipo && (
-                  <div className="bg-white p-4 rounded-xl border border-green-200 mt-4">
+                  <div className="bg-green-50 p-4 rounded-xl border border-green-200 mt-4">
                     <h4 className="font-semibold text-gray-900 mb-3">Especificaciones del Equipo</h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                      <div><span className="text-gray-600">Especificación 1:</span><p className="font-semibold">{formData.disco}</p></div>
-                      <div><span className="text-gray-600">Especificación 2:</span><p className="font-semibold">{formData.memoria}</p></div>
-                      <div><span className="text-gray-600">Especificación 3:</span><p className="font-semibold">{formData.procesador}</p></div>
-                      <div><span className="text-gray-600">Especificación 4:</span><p className="font-semibold">{formData.so}</p></div>
+                      <div><span className="text-gray-600">Especificación 1:</span><p className="font-semibold text-gray-900">{formData.disco}</p></div>
+                      <div><span className="text-gray-600">Especificación 2:</span><p className="font-semibold text-gray-900">{formData.memoria}</p></div>
+                      <div><span className="text-gray-600">Especificación 3:</span><p className="font-semibold text-gray-900">{formData.procesador}</p></div>
+                      <div><span className="text-gray-600">Especificación 4:</span><p className="font-semibold text-gray-900">{formData.so}</p></div>
                     </div>
                   </div>
                 )}
@@ -1632,7 +1812,7 @@ export default function Asignacion() {
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Serial del Equipo (S/N)</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Serial del Equipo (S/N)</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1641,11 +1821,11 @@ export default function Asignacion() {
                         onFocus={() => setShowEquipoSecundarioDropdown(true)}
                         onBlur={() => setTimeout(() => setShowEquipoSecundarioDropdown(false), 200)}
                         placeholder="Escribir o buscar serial..."
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent"
                       />
                       
                       {showEquipoSecundarioDropdown && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                           {equipos
                             .filter(eq => {
                               const isCurrentlyAssigned = formData.snSecundario === eq.sn;
@@ -1656,7 +1836,6 @@ export default function Asignacion() {
                               if (!matchesSearch) return false;
                               if (isPrimaryEquipment && !isCurrentlyAssigned) return false;
                               
-                              // Si estamos editando y el equipo es el actualmente asignado, mostrarlo
                               if (editingId && isCurrentlyAssigned) {
                                 return true;
                               }
@@ -1672,10 +1851,10 @@ export default function Asignacion() {
                                   handleEquipoSecundarioChange(eq.sn);
                                   setShowEquipoSecundarioDropdown(false);
                                 }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-orange-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                                className="w-full text-left px-4 py-2.5 hover:bg-orange-50 dark:hover:bg-orange-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
                               >
-                                <div className="font-semibold text-gray-900">{eq.sn}</div>
-                                <div className="text-xs text-gray-600">{eq.marca} {eq.modelo}</div>
+                                <div className="font-semibold text-gray-900 dark:text-gray-100">{eq.sn}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">{eq.marca} {eq.modelo}</div>
                               </button>
                             ))}
                           {searchEquipoSec && equipos.filter(eq => {
@@ -1693,56 +1872,68 @@ export default function Asignacion() {
                             
                             return isAvailable;
                           }).length === 0 && (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                              No se encontraron equipos
+                            <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                              No se encontraron equipos disponibles
                             </div>
                           )}
                         </div>
                       )}
+                      {formData.equipoSecundario && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchEquipoSec('');
+                            handleEquipoSecundarioChange('');
+                          }}
+                          className="mt-2 w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Icon name="trash" /> Quitar equipo secundario
+                        </button>
+                      )}
                     </div>
                   </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Código Activo Fijo</label>
-                      <input type="text" value={formData.codActivoFijoSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Código Activo Fijo</label>
+                      <input type="text" value={formData.codActivoFijoSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Marca</label>
-                      <input type="text" value={formData.marcaSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Marca</label>
+                      <input type="text" value={formData.marcaSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Modelo</label>
-                      <input type="text" value={formData.modeloSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Modelo</label>
+                      <input type="text" value={formData.modeloSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Equipo</label>
-                      <input type="text" value={formData.tipoEquipoSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Tipo de Equipo</label>
+                      <input type="text" value={formData.tipoEquipoSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Condición</label>
-                      <input type="text" value={formData.condicionSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Condición</label>
+                      <input type="text" value={formData.condicionSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                     </div>
                   </div>
                   {formData.equipoSecundario && (
-                    <div className="bg-white p-4 rounded-xl border border-orange-200 mt-4">
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 mt-4">
                       <h4 className="font-semibold text-gray-900 mb-3">Especificaciones del Equipo Secundario</h4>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                        <div><span className="text-gray-600">Especificación 1:</span><p className="font-semibold">{formData.discoSecundario}</p></div>
-                        <div><span className="text-gray-600">Especificación 2:</span><p className="font-semibold">{formData.memoriaSecundario}</p></div>
-                        <div><span className="text-gray-600">Especificación 3:</span><p className="font-semibold">{formData.procesadorSecundario}</p></div>
-                        <div><span className="text-gray-600">Especificación 4:</span><p className="font-semibold">{formData.soSecundario}</p></div>
+                        <div><span className="text-gray-600">Especificación 1:</span><p className="font-semibold text-gray-900">{formData.discoSecundario}</p></div>
+                        <div><span className="text-gray-600">Especificación 2:</span><p className="font-semibold text-gray-900">{formData.memoriaSecundario}</p></div>
+                        <div><span className="text-gray-600">Especificación 3:</span><p className="font-semibold text-gray-900">{formData.procesadorSecundario}</p></div>
+                        <div><span className="text-gray-600">Especificación 4:</span><p className="font-semibold text-gray-900">{formData.soSecundario}</p></div>
                       </div>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className="bg-purple-50 rounded-2xl border-2 border-purple-100 p-6">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl border-2 border-purple-100 dark:border-purple-900 p-6">
                 <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
                   <span className="text-2xl">📱</span> Celular (Opcional)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Seleccionar Celular</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Seleccionar Celular</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1751,11 +1942,11 @@ export default function Asignacion() {
                         onFocus={() => setShowCelularDropdown(true)}
                         onBlur={() => setTimeout(() => setShowCelularDropdown(false), 200)}
                         placeholder="Escribir o buscar serial/IMEI/número..."
-                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
+                        className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent"
                       />
                       
                       {showCelularDropdown && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
                           {celulares
                             .filter(cel => {
                               const isCurrentlyAssigned = formData.celularId === cel.id;
@@ -1776,10 +1967,10 @@ export default function Asignacion() {
                                   handleCelularChange(cel.id);
                                   setShowCelularDropdown(false);
                                 }}
-                                className="w-full text-left px-4 py-2.5 hover:bg-purple-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0 transition-colors"
+                                className="w-full text-left px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
                               >
-                                <div className="font-semibold text-gray-900">{cel.serial}</div>
-                                <div className="text-xs text-gray-600">{cel.marca} {cel.modelo} • {cel.numero}</div>
+                                <div className="font-semibold text-gray-900 dark:text-gray-100">{cel.serial}</div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">{cel.marca} {cel.modelo} • {cel.numero}</div>
                               </button>
                             ))}
                           {searchCelularField && celulares.filter(cel => {
@@ -1792,47 +1983,59 @@ export default function Asignacion() {
                             
                             return matchesSearch && canShow;
                           }).length === 0 && (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">
-                              No se encontraron celulares
+                            <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                              No se encontraron celulares disponibles
                             </div>
                           )}
                         </div>
+                      )}
+                      {formData.celularId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchCelularField('');
+                            handleCelularChange('');
+                          }}
+                          className="mt-2 w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Icon name="trash" /> Quitar celular
+                        </button>
                       )}
                     </div>
                   </div>
                   {formData.celularId && (
                     <>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Serial</label>
-                        <input type="text" value={formData.serialCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Serial</label>
+                        <input type="text" value={formData.serialCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">IMEI</label>
-                        <input type="text" value={formData.imeiCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">IMEI</label>
+                        <input type="text" value={formData.imeiCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Marca</label>
-                        <input type="text" value={formData.marcaCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Marca</label>
+                        <input type="text" value={formData.marcaCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Modelo</label>
-                        <input type="text" value={formData.modeloCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Modelo</label>
+                        <input type="text" value={formData.modeloCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Celular</label>
-                        <input type="text" value={formData.numeroCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <input type="text" value={formData.numeroCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Condición</label>
-                        <input type="text" value={formData.condicionCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Condición</label>
+                        <input type="text" value={formData.condicionCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Restricción</label>
-                        <input type="text" value={formData.restriccionCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Restricción</label>
+                        <input type="text" value={formData.restriccionCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Plan</label>
-                        <input type="text" value={formData.planCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-100 text-gray-600" />
+                        <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Plan</label>
+                        <input type="text" value={formData.planCelular} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
                       </div>
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Asignación Celular</label>
@@ -1849,41 +2052,114 @@ export default function Asignacion() {
                 </div>
               </div>
 
-              <div className="bg-yellow-50 rounded-2xl border-2 border-yellow-100 p-6">
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl border-2 border-purple-100 dark:border-purple-900 p-6">
+                <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
+                  <span className="text-2xl">🔧</span> Accesorios (Opcional)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2 relative">
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Seleccionar Accesorio</label>
+                    <input
+                      type="text"
+                      value={searchAccesorio}
+                      onChange={(e) => setSearchAccesorio(e.target.value)}
+                      onFocus={() => setShowAccesorioDropdown(true)}
+                      placeholder="Buscar por código o tipo de accesorio..."
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    {showAccesorioDropdown && (
+                      <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-10 max-h-64 overflow-y-auto mt-1">
+                        {accesorios
+                          .filter(acc => {
+                            const isAvailable = !acc.asignado;
+                            const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.modelo}`.toLowerCase().includes(searchAccesorio.toLowerCase());
+                            
+                            const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
+                            const canShow = isAvailable || !!accesorioAsignacionActual;
+                            
+                            return matchesSearch && canShow;
+                          })
+                          .map(acc => (
+                            <button
+                              type="button"
+                              key={acc.id}
+                              onClick={() => {
+                                handleAccesorioChange(acc.id);
+                                setSearchAccesorio(`${acc.codigoActivoFijo} - ${acc.tipoAccesorio}`);
+                                setShowAccesorioDropdown(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
+                            >
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">{acc.codigoActivoFijo}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">{acc.tipoAccesorio} • {acc.marca} {acc.modelo}</div>
+                            </button>
+                          ))}
+                        {searchAccesorio && accesorios.filter(acc => {
+                          const isAvailable = !acc.asignado;
+                          const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.modelo}`.toLowerCase().includes(searchAccesorio.toLowerCase());
+                          
+                          const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
+                          const canShow = isAvailable || !!accesorioAsignacionActual;
+                          
+                          return matchesSearch && canShow;
+                        }).length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
+                            No se encontraron accesorios disponibles
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {formData.accesorioId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleAccesorioChange('');
+                        setSearchAccesorio('');
+                      }}
+                      className="col-span-1 md:col-span-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Icon name="trash" /> Quitar accesorio
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-2xl border-2 border-yellow-100 dark:border-yellow-900 p-6">
                 <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
                   <span className="text-2xl">📝</span> Observaciones y Entrega
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones Adicionales</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Observaciones Adicionales</label>
                     <textarea
                       name="observaciones"
                       value={formData.observaciones}
                       onChange={handleChange}
                       placeholder="Ej: Entrega de Laptop con su cargador original y mochila."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                       rows="3"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre de Entregador</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Nombre de Entregador</label>
                     <input
                       type="text"
                       name="nombreEntrega"
                       value={formData.nombreEntrega}
                       onChange={handleChange}
                       placeholder="Nombre"
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Entrega</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Fecha de Entrega</label>
                     <input
                       type="date"
                       name="fechaEntrega"
                       value={formData.fechaEntrega}
                       onChange={handleChange}
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -1894,7 +2170,7 @@ export default function Asignacion() {
                       value={formData.hojaEntregaUrl}
                       onChange={handleChange}
                       placeholder="https://..."
-                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+                      className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-yellow-400"
                     />
                   </div>
                 </div>
@@ -1922,7 +2198,7 @@ export default function Asignacion() {
             </form>
           </div>
         ) : (
-          <div className="card-saas bg-white">
+          <div className="card-saas bg-white border border-gray-200 shadow-sm">
             <div className="pb-6 border-b border-gray-200">
               <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-2">Asignaciones Registradas</h2>
               <p className="text-gray-600 text-base">Total: <span className="font-semibold">{asignaciones.length}</span> asignaciones</p>
@@ -2032,12 +2308,12 @@ export default function Asignacion() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="text-left p-4 font-semibold text-gray-700">Nombre</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Usuario</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Puesto</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Equipo</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Serial</th>
-                        <th className="text-left p-4 font-semibold text-gray-700">Fecha</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Nombre</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Usuario</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Puesto</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Equipo</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Serial</th>
+                        <th className="text-left p-4 font-semibold text-gray-900">Fecha</th>
                         <th className="text-left p-4 font-semibold text-gray-700">Acciones</th>
                       </tr>
                     </thead>
@@ -2062,10 +2338,10 @@ export default function Asignacion() {
                         .map(asignacion => (
                           <tr key={asignacion.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                             <td className="p-4 text-gray-900 font-medium">{asignacion.nombre}</td>
-                            <td className="p-4 text-gray-600">{asignacion.usuario}</td>
-                            <td className="p-4 text-gray-600">{asignacion.puesto}</td>
-                            <td className="p-4 text-gray-600">{asignacion.marca} {asignacion.modelo}</td>
-                            <td className="p-4 text-gray-600 font-mono text-xs">{asignacion.sn}</td>
+                            <td className="p-4 text-gray-900">{asignacion.usuario}</td>
+                            <td className="p-4 text-gray-900">{asignacion.puesto}</td>
+                            <td className="p-4 text-gray-900">{asignacion.marca} {asignacion.modelo}</td>
+                            <td className="p-4 text-gray-900 font-mono text-xs">{asignacion.sn}</td>
                             <td className="p-4 text-gray-600">{asignacion.fechaAsignacion}</td>
                             <td className="p-4">
                               <div className="flex gap-2">
@@ -2102,3 +2378,5 @@ export default function Asignacion() {
     </div>
   );
 }
+
+
