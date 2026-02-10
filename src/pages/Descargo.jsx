@@ -120,6 +120,18 @@ export default function Descargo() {
         return;
       }
 
+      // Validar que el ref tenga contenido antes de abrir el modal
+      if (!printRef.current || !printRef.current.innerHTML || printRef.current.innerHTML.trim() === '') {
+        // Crear una referencia temporal para validar contenido
+        console.warn('⚠️ Contenido del ref está vacío, actualizando validatedAsignacion');
+      }
+
+      // Establecer la asignación validada para el modal
+      setValidatedAsignacion(selectedAsignacion);
+      
+      // Esperar un frame para asegurar que el DOM está actualizado
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
       // Preparar datos del descargo
       const descargoData = {
         ...selectedAsignacion,
@@ -177,12 +189,15 @@ export default function Descargo() {
 
       showToast('✅ Descargo validado correctamente. Los equipos han sido liberados.', 'success');
       
-      // Actualizar datos y deseleccionar
-      setSelectedAsignacion(null);
+      // Mostrar modal de PDF
+      setShowPDFModal(true);
 
     } catch (error) {
       console.error('Error al validar descargo:', error);
       showToast('Error al validar descargo: ' + error.message, 'error');
+      // Limpiar estado en caso de error
+      setValidatedAsignacion(null);
+      setShowPDFModal(false);
     } finally {
       setLoading(false);
     }
@@ -288,7 +303,17 @@ export default function Descargo() {
   };
 
   const handleDownloadPDF = async () => {
-    if (!printRef.current || !validatedAsignacion) return;
+    // Validar contenido del ref
+    if (!printRef.current || !validatedAsignacion) {
+      showToast('Error: Contenido del PDF no disponible', 'error');
+      return;
+    }
+
+    // Verificar que el contenido no esté vacío
+    if (!printRef.current.innerHTML || printRef.current.innerHTML.trim() === '') {
+      showToast('Error: El contenido del PDF está vacío', 'error');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -304,7 +329,17 @@ export default function Descargo() {
   };
 
   const handlePrintPDF = () => {
-    if (!printRef.current) return;
+    // Validar contenido del ref
+    if (!printRef.current || !validatedAsignacion) {
+      showToast('Error: Contenido del PDF no disponible', 'error');
+      return;
+    }
+
+    // Verificar que el contenido no esté vacío
+    if (!printRef.current.innerHTML || printRef.current.innerHTML.trim() === '') {
+      showToast('Error: El contenido del PDF está vacío', 'error');
+      return;
+    }
 
     try {
       handlePrint();
@@ -364,7 +399,7 @@ export default function Descargo() {
       pdfContainer = document.createElement('div');
       pdfContainer.style.cssText = `
         width: 210mm;
-        height: 297mm;
+        height: auto;
         padding: 12.45mm 21.84mm 9.91mm 21.84mm;
         background: white;
         box-sizing: border-box;
@@ -438,11 +473,12 @@ export default function Descargo() {
         allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        windowWidth: pdfContainer.offsetWidth,
-        windowHeight: pdfContainer.offsetHeight,
+        windowWidth: 210 * 96 / 25.4,  // Convertir mm a px (210mm en DPI estándar)
+        windowHeight: undefined,  // Permitir altura automática
         timeout: 30000,
         imageTimeout: 30000,
         removeContainer: false,
+        useCORS: true,
         ignoreElements: (element) => {
           // Ignorar elementos que no queremos en la captura
           if (element.classList && element.classList.contains('no-print')) {
@@ -470,9 +506,11 @@ export default function Descargo() {
       const imgWidthMm = 210;
       const imgHeightMm = imgWidthMm * canvasHeight / canvasWidth;
 
+      // Solo agregar una página si el contenido cabe
       if (imgHeightMm <= 297) {
         pdf.addImage(imgData, 'JPEG', 0, 0, imgWidthMm, imgHeightMm);
       } else {
+        // Dividir en múltiples páginas solo si es realmente necesario
         let heightLeft = imgHeightMm;
         let position = 0;
         let pageNumber = 0;
@@ -1224,12 +1262,7 @@ export default function Descargo() {
       , document.getElementById('portal') || document.body
       )}
 
-      {/* Template PDF oculto */}
-      {validatedAsignacion && (
-        <div ref={printRef} style={{ display: 'none' }}>
-          <DescargoPDFTemplate asignacion={validatedAsignacion} userPermissions={userPermissions} />
-        </div>
-      )}
+
 
       {showDeleteConfirm && (
         <ConfirmDialog
@@ -1310,9 +1343,6 @@ function DescargoPDFTemplate({ asignacion, userPermissions }) {
     <div style={{
       width: '210mm',
       height: 'auto',
-      minHeight: '297mm',
-      maxHeight: '297mm',
-      overflow: 'hidden',
       padding: '14.4mm 22mm 10mm 22mm',
       backgroundColor: '#ffffff',
       boxSizing: 'border-box',

@@ -89,6 +89,7 @@ export default function Asignacion() {
     licenciaSecundario: '',
     tipoEquipoSecundario: '',
     condicionSecundario: '',
+    fechaAsignacionSecundario: new Date().toISOString().split('T')[0],
     // Celular
     celularId: '',
     serialCelular: '',
@@ -730,6 +731,34 @@ export default function Asignacion() {
         }
       }
 
+      // Si es un accesorio, marcarlo como asignado
+      if (formData.accesorioId) {
+        const accesorioToUpdate = accesorios.find(a => a.id === formData.accesorioId);
+        if (accesorioToUpdate) {
+          await updateDoc(doc(db, 'accesorios', accesorioToUpdate.id), {
+            asignado: true,
+          });
+        }
+      }
+
+      // Si cambió el accesorio durante edición, devolver el anterior a disponible
+      if (editingId && asignacionAnterior?.accesorioId && asignacionAnterior.accesorioId !== formData.accesorioId) {
+        const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
+        if (accesorioAnterior) {
+          await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
+            asignado: false,
+          });
+        }
+      } else if (editingId && asignacionAnterior?.accesorioId && !formData.accesorioId) {
+        // Si quitó el accesorio, devolverlo a disponible
+        const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
+        if (accesorioAnterior) {
+          await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
+            asignado: false,
+          });
+        }
+      }
+
       setFormData({
         sucursal: '',
         oficina: '',
@@ -1202,7 +1231,7 @@ export default function Asignacion() {
       'SO': asignacion.soSecundario || '',
       'Licencia': asignacion.licenciaSecundario || '',
       'Condición': asignacion.condicionSecundario || '',
-      'Fecha Asignación': asignacion.fechaAsignacion,
+      'Fecha Asignación': asignacion.fechaAsignacionSecundario || asignacion.fechaAsignacion,
       'Asignado Por': asignacion.asignadoPor,
     }));
 
@@ -1911,6 +1940,20 @@ export default function Asignacion() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Condición</label>
                       <input type="text" value={formData.condicionSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Licencia</label>
+                      <input type="text" value={formData.licenciaSecundario} disabled className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-700 dark:text-gray-300 bg-gray-50 text-gray-600" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Fecha de Asignación</label>
+                      <input
+                        type="date"
+                        name="fechaAsignacionSecundario"
+                        value={formData.fechaAsignacionSecundario}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
+                      />
                     </div>
                   </div>
                   {formData.equipoSecundario && (
