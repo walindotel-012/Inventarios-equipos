@@ -735,9 +735,19 @@ export default function Asignacion() {
       if (formData.accesorioId) {
         const accesorioToUpdate = accesorios.find(a => a.id === formData.accesorioId);
         if (accesorioToUpdate) {
+          console.log('Actualizando accesorio como asignado:', accesorioToUpdate.id, accesorioToUpdate.codigoActivoFijo);
           await updateDoc(doc(db, 'accesorios', accesorioToUpdate.id), {
             asignado: true,
           });
+        } else {
+          // Si no lo encuentra por ID, intenta por codigoActivoFijo (para retrocompatibilidad)
+          const accesorioByCode = accesorios.find(a => a.codigoActivoFijo === formData.codigoActivoFijoAccesorio);
+          if (accesorioByCode) {
+            console.log('Actualizando accesorio (por código) como asignado:', accesorioByCode.id, accesorioByCode.codigoActivoFijo);
+            await updateDoc(doc(db, 'accesorios', accesorioByCode.id), {
+              asignado: true,
+            });
+          }
         }
       }
 
@@ -745,6 +755,7 @@ export default function Asignacion() {
       if (editingId && asignacionAnterior?.accesorioId && asignacionAnterior.accesorioId !== formData.accesorioId) {
         const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
         if (accesorioAnterior) {
+          console.log('Devolviendo accesorio a disponible (cambio):', accesorioAnterior.id);
           await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
             asignado: false,
           });
@@ -753,6 +764,7 @@ export default function Asignacion() {
         // Si quitó el accesorio, devolverlo a disponible
         const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
         if (accesorioAnterior) {
+          console.log('Devolviendo accesorio a disponible (removido):', accesorioAnterior.id);
           await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
             asignado: false,
           });
@@ -1045,6 +1057,17 @@ export default function Asignacion() {
           if (celular) {
             await updateDoc(doc(db, 'celulares', celular.id), {
               estado: 'disponible',
+              asignado: false,
+            });
+          }
+        }
+
+        // Devolver accesorio a disponible
+        if (asignacionAEliminar.accesorioId) {
+          const accesorio = accesorios.find(a => a.id === asignacionAEliminar.accesorioId);
+          if (accesorio) {
+            console.log('Devolviendo accesorio a disponible (delete):', accesorio.id);
+            await updateDoc(doc(db, 'accesorios', accesorio.id), {
               asignado: false,
             });
           }
@@ -2115,7 +2138,7 @@ export default function Asignacion() {
                         {accesorios
                           .filter(acc => {
                             const isAvailable = !acc.asignado;
-                            const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.modelo}`.toLowerCase().includes(searchAccesorio.toLowerCase());
+                            const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.serial}`.toLowerCase().includes(searchAccesorio.toLowerCase());
                             
                             const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
                             const canShow = isAvailable || !!accesorioAsignacionActual;
@@ -2134,12 +2157,12 @@ export default function Asignacion() {
                               className="w-full text-left px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
                             >
                               <div className="font-semibold text-gray-900 dark:text-gray-100">{acc.codigoActivoFijo}</div>
-                              <div className="text-xs text-gray-600 dark:text-gray-400">{acc.tipoAccesorio} • {acc.marca} {acc.modelo}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">{acc.tipoAccesorio} • {acc.marca} {acc.serial}</div>
                             </button>
                           ))}
                         {searchAccesorio && accesorios.filter(acc => {
                           const isAvailable = !acc.asignado;
-                          const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.modelo}`.toLowerCase().includes(searchAccesorio.toLowerCase());
+                          const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.serial}`.toLowerCase().includes(searchAccesorio.toLowerCase());
                           
                           const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
                           const canShow = isAvailable || !!accesorioAsignacionActual;

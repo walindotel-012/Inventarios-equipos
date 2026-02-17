@@ -44,13 +44,16 @@ export default function Dashboard() {
       const equiposList = equiposSnapshot.docs.map(doc => doc.data());
       const celularesList = celularesSnapshot.docs.map(doc => doc.data());
       const asignacionesList = asignacionesSnapshot.docs.map(doc => doc.data());
+      const accesoriosList = accesoriosSnapshot.docs.map(doc => doc.data());
 
       // Contar equipos disponibles (usando el estado de la tabla de equipos como fuente de verdad)
       const equiposDisponibles = equiposList.filter(e => !e.asignado || e.estado === 'disponible').length;
       // Contar celulares disponibles (usando el estado de la tabla de celulares como fuente de verdad)
       const celularesDisponibles = celularesList.filter(c => !c.asignado || c.estado === 'disponible').length;
+      // Contar accesorios disponibles
+      const accesoriosDisponibles = accesoriosList.filter(a => !a.asignado).length;
 
-      const totalDisponibles = equiposDisponibles + celularesDisponibles;
+      const totalDisponibles = equiposDisponibles + celularesDisponibles + accesoriosDisponibles;
 
       // Contar entregas: igual al total de asignaciones
       const entregasCount = asignacionesList.length;
