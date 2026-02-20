@@ -14,6 +14,7 @@ import EquiposDisponibles from './pages/EquiposDisponibles';
 import IconShowcase from './pages/IconShowcase';
 import AdminPermisos from './pages/AdminPermisos';
 import Bitacora from './pages/Bitacora';
+import UpdateAcesoriosPage from './pages/UpdateAcesoriosPage';
 import Navbar from './components/Navbar';
 
 function ProtectedRoute({ children }) {
@@ -64,6 +65,7 @@ function App() {
                       <Route path="/admin-permisos" element={<AdminPermisos />} />
                       <Route path="/bitacora" element={<Bitacora />} />
                       <Route path="/icon-showcase" element={<IconShowcase />} />
+                      <Route path="/update-accesorios" element={<UpdateAcesoriosPage />} />
                     </Routes>
                   </main>
                 </div>

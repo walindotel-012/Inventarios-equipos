@@ -102,14 +102,8 @@ export default function Asignacion() {
     planCelular: '',
     tipoEquipoCelular: '',
     fechaAsignacionCelular: '',
-    // Accesorios
-    accesorioId: '',
-    accesorioNombre: '',
-    codigoActivoFijoAccesorio: '',
-    tipoAccesorio: '',
-    marcaAccesorio: '',
-    modeloAccesorio: '',
-    condicionAccesorio: '',
+    // Accesorios - Múltiples
+    accesorios: [],
     observaciones: '',
   });
 
@@ -325,32 +319,44 @@ export default function Asignacion() {
 
   const handleAccesorioChange = (accesorioId) => {
     if (!accesorioId) {
-      setFormData(prev => ({
-        ...prev,
-        accesorioId: '',
-        accesorioNombre: '',
-        codigoActivoFijoAccesorio: '',
-        tipoAccesorio: '',
-        marcaAccesorio: '',
-        modeloAccesorio: '',
-        condicionAccesorio: '',
-      }));
       return;
     }
 
     const accesorio = accesorios.find(a => a.id === accesorioId);
     if (accesorio) {
-      setFormData(prev => ({
-        ...prev,
-        accesorioId: accesorioId,
-        accesorioNombre: `${accesorio.codigoActivoFijo} - ${accesorio.tipoAccesorio}`,
-        codigoActivoFijoAccesorio: accesorio.codigoActivoFijo || '',
-        tipoAccesorio: accesorio.tipoAccesorio || '',
-        marcaAccesorio: accesorio.marca || '',
-        modeloAccesorio: accesorio.modelo || '',
-        condicionAccesorio: accesorio.condicion || '',
-      }));
+      // Verificar si el accesorio ya está en la lista
+      const accesoriosArray = Array.isArray(formData.accesorios) ? formData.accesorios : [];
+      const yaExiste = accesoriosArray.some(a => a.id === accesorioId);
+      if (!yaExiste) {
+        // Capturar el identificador: serial, numero, numeroSerie, o lo que esté disponible
+        const identificador = accesorio.serial || accesorio.numero || accesorio.numeroSerie || accesorio.imei || '';
+        
+        const nuevoAccesorio = {
+          id: accesorio.id,
+          codigoActivoFijo: accesorio.codigoActivoFijo || '',
+          tipoAccesorio: accesorio.tipoAccesorio || '',
+          marca: accesorio.marca || '',
+          modelo: accesorio.modelo || '',
+          condicion: accesorio.condicion || '',
+          serial: identificador,
+        };
+        
+        setFormData(prev => ({
+          ...prev,
+          accesorios: [...accesoriosArray, nuevoAccesorio],
+        }));
+      }
     }
+  };
+
+  const handleRemoveAccesorio = (accesorioId) => {
+    setFormData(prev => {
+      const accesoriosArray = Array.isArray(prev.accesorios) ? prev.accesorios : [];
+      return {
+        ...prev,
+        accesorios: accesoriosArray.filter(a => a.id !== accesorioId),
+      };
+    });
   };
 
   const handleEquipoSecundarioChange = async (snValue) => {
@@ -731,43 +737,46 @@ export default function Asignacion() {
         }
       }
 
-      // Si es un accesorio, marcarlo como asignado
-      if (formData.accesorioId) {
-        const accesorioToUpdate = accesorios.find(a => a.id === formData.accesorioId);
+      // Si son accesorios, marcarlos como asignados
+      const accesoriosArray = Array.isArray(formData.accesorios) ? formData.accesorios : [];
+      for (const accesorio of accesoriosArray) {
+        const accesorioToUpdate = accesorios.find(a => a.id === accesorio.id);
         if (accesorioToUpdate) {
           console.log('Actualizando accesorio como asignado:', accesorioToUpdate.id, accesorioToUpdate.codigoActivoFijo);
           await updateDoc(doc(db, 'accesorios', accesorioToUpdate.id), {
             asignado: true,
           });
-        } else {
-          // Si no lo encuentra por ID, intenta por codigoActivoFijo (para retrocompatibilidad)
-          const accesorioByCode = accesorios.find(a => a.codigoActivoFijo === formData.codigoActivoFijoAccesorio);
-          if (accesorioByCode) {
-            console.log('Actualizando accesorio (por código) como asignado:', accesorioByCode.id, accesorioByCode.codigoActivoFijo);
-            await updateDoc(doc(db, 'accesorios', accesorioByCode.id), {
-              asignado: true,
-            });
-          }
         }
       }
 
-      // Si cambió el accesorio durante edición, devolver el anterior a disponible
-      if (editingId && asignacionAnterior?.accesorioId && asignacionAnterior.accesorioId !== formData.accesorioId) {
-        const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
-        if (accesorioAnterior) {
-          console.log('Devolviendo accesorio a disponible (cambio):', accesorioAnterior.id);
-          await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
-            asignado: false,
-          });
+      // Si cambió la lista de accesorios durante edición, devolver los anteriores a disponible
+      if (editingId && asignacionAnterior?.accesorios && Array.isArray(asignacionAnterior.accesorios)) {
+        const accesorioArrayActual = Array.isArray(formData.accesorios) ? formData.accesorios : [];
+        const accesoriosAnterioresIds = asignacionAnterior.accesorios.map(a => a.id);
+        const accesoriosNuevosIds = accesorioArrayActual.map(a => a.id);
+        
+        // Devolver a disponible los que fueron removidos
+        for (const accesorioId of accesoriosAnterioresIds) {
+          if (!accesoriosNuevosIds.includes(accesorioId)) {
+            const accesorioAnterior = accesorios.find(a => a.id === accesorioId);
+            if (accesorioAnterior) {
+              console.log('Devolviendo accesorio a disponible (cambio):', accesorioAnterior.id);
+              await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
+                asignado: false,
+              });
+            }
+          }
         }
-      } else if (editingId && asignacionAnterior?.accesorioId && !formData.accesorioId) {
-        // Si quitó el accesorio, devolverlo a disponible
-        const accesorioAnterior = accesorios.find(a => a.id === asignacionAnterior.accesorioId);
-        if (accesorioAnterior) {
-          console.log('Devolviendo accesorio a disponible (removido):', accesorioAnterior.id);
-          await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
-            asignado: false,
-          });
+      } else if (editingId && asignacionAnterior?.accesorios && Array.isArray(asignacionAnterior.accesorios) && (!Array.isArray(formData.accesorios) || formData.accesorios.length === 0)) {
+        // Si quitó todos los accesorios, devolverlos a disponible
+        for (const acc of asignacionAnterior.accesorios) {
+          const accesorioAnterior = accesorios.find(a => a.id === acc.id);
+          if (accesorioAnterior) {
+            console.log('Devolviendo accesorio a disponible (removido):', accesorioAnterior.id);
+            await updateDoc(doc(db, 'accesorios', accesorioAnterior.id), {
+              asignado: false,
+            });
+          }
         }
       }
 
@@ -821,6 +830,8 @@ export default function Asignacion() {
         planCelular: '',
         tipoEquipoCelular: '',
         fechaAsignacionCelular: '',
+        // Accesorios
+        accesorios: [],
         observaciones: '',
       });
 
@@ -837,39 +848,126 @@ export default function Asignacion() {
   const handleEditar = (asignacion) => {
     // Buscar la asignación actualizada en el array completo
     const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
-    setFormData(asignacionActualizada);
+    
+    // Asegurar que todos los campos existan combinando con un objeto por defecto
+    const formDataCompleto = {
+      sucursal: '',
+      oficina: '',
+      puesto: '',
+      nombre: '',
+      usuario: '',
+      empresa: 'AUTOMÍA SAS',
+      equipo: '',
+      codActivoFijo: '',
+      netbiosName: '',
+      marca: '',
+      modelo: '',
+      sn: '',
+      disco: '',
+      memoria: '',
+      procesador: '',
+      so: '',
+      licencia: '',
+      tipoEquipo: '',
+      condicion: '',
+      fechaAsignacion: new Date().toISOString().split('T')[0],
+      asignadoPor: currentUser?.displayName || currentUser?.email,
+      hojaEntregaUrl: '',
+      nombreEntrega: currentUser?.displayName || currentUser?.email,
+      fechaEntrega: new Date().toISOString().split('T')[0],
+      equipoSecundario: '',
+      codActivoFijoSecundario: '',
+      marcaSecundario: '',
+      modeloSecundario: '',
+      snSecundario: '',
+      discoSecundario: '',
+      memoriaSecundario: '',
+      procesadorSecundario: '',
+      soSecundario: '',
+      licenciaSecundario: '',
+      tipoEquipoSecundario: '',
+      condicionSecundario: '',
+      fechaAsignacionSecundario: new Date().toISOString().split('T')[0],
+      celularId: '',
+      serialCelular: '',
+      marcaCelular: '',
+      modeloCelular: '',
+      numeroCelular: '',
+      condicionCelular: '',
+      restriccionCelular: '',
+      imeiCelular: '',
+      planCelular: '',
+      tipoEquipoCelular: '',
+      fechaAsignacionCelular: '',
+      accesorios: [],
+      observaciones: '',
+      ...asignacionActualizada,
+    };
+    
+    setFormData(formDataCompleto);
     
     // Actualizar los campos de búsqueda con los valores actuales
     // Equipo principal
-    if (asignacionActualizada.sn) {
-      const equipoPrincipal = equipos.find(e => e.sn === asignacionActualizada.sn);
+    if (formDataCompleto.sn) {
+      const equipoPrincipal = equipos.find(e => e.sn === formDataCompleto.sn);
       if (equipoPrincipal) {
         setSearchEquipoPrincipal(`${equipoPrincipal.sn} - ${equipoPrincipal.marca} ${equipoPrincipal.modelo}`);
       }
+    } else {
+      setSearchEquipoPrincipal('');
     }
     
     // Equipo secundario
-    if (asignacionActualizada.snSecundario) {
-      const equipoSecundario = equipos.find(e => e.sn === asignacionActualizada.snSecundario);
+    if (formDataCompleto.snSecundario) {
+      const equipoSecundario = equipos.find(e => e.sn === formDataCompleto.snSecundario);
       if (equipoSecundario) {
         setSearchEquipoSec(`${equipoSecundario.sn} - ${equipoSecundario.marca} ${equipoSecundario.modelo}`);
       }
+    } else {
+      setSearchEquipoSec('');
     }
     
     // Celular
-    if (asignacionActualizada.celularId) {
-      const celular = celulares.find(c => c.id === asignacionActualizada.celularId);
+    if (formDataCompleto.celularId) {
+      const celular = celulares.find(c => c.id === formDataCompleto.celularId);
       if (celular) {
         setSearchCelularField(`${celular.serial} - ${celular.marca} ${celular.modelo}`);
       }
+    } else {
+      setSearchCelularField('');
     }
-
-    // Accesorio
-    if (asignacionActualizada.accesorioId) {
-      const accesorio = accesorios.find(a => a.id === asignacionActualizada.accesorioId);
-      if (accesorio) {
-        setSearchAccesorio(`${accesorio.codigoActivoFijo} - ${accesorio.tipoAccesorio}`);
+    
+    // Accesorios se cargan automáticamente desde accesorios array en formData
+    // Pero si es un accesorio antiguo (formato anterior), convertirlo al nuevo formato
+    if (formDataCompleto.accesorioId && (!Array.isArray(formDataCompleto.accesorios) || formDataCompleto.accesorios.length === 0)) {
+      // Buscar el accesorio en la BD para obtener todos sus datos
+      const accesorioAntiguoDb = accesorios.find(a => a.id === formDataCompleto.accesorioId);
+      if (accesorioAntiguoDb) {
+        // Capturar el identificador: serial, numero, numeroSerie, o lo que esté disponible
+        const identificador = accesorioAntiguoDb.serial || accesorioAntiguoDb.numero || accesorioAntiguoDb.numeroSerie || accesorioAntiguoDb.imei || '';
+        
+        const accesorioConvertido = {
+          id: accesorioAntiguoDb.id,
+          codigoActivoFijo: accesorioAntiguoDb.codigoActivoFijo || formDataCompleto.codigoActivoFijoAccesorio || '',
+          tipoAccesorio: accesorioAntiguoDb.tipoAccesorio || formDataCompleto.tipoAccesorio || '',
+          marca: accesorioAntiguoDb.marca || formDataCompleto.marcaAccesorio || '',
+          modelo: accesorioAntiguoDb.modelo || formDataCompleto.modeloAccesorio || '',
+          condicion: accesorioAntiguoDb.condicion || formDataCompleto.condicionAccesorio || '',
+          serial: identificador,
+        };
+        
+        formDataCompleto.accesorios = [accesorioConvertido];
       }
+    }
+    
+    setFormData(formDataCompleto);
+    setSearchAccesorio('');
+    
+    // Mostrar equipo secundario si existe
+    if (formDataCompleto.snSecundario) {
+      setShowEquipoSecundario(true);
+    } else {
+      setShowEquipoSecundario(false);
     }
     
     setEditingId(asignacion.id);
@@ -925,13 +1023,7 @@ export default function Asignacion() {
       tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
       // Accesorios
-      accesorioId: '',
-      accesorioNombre: '',
-      codigoActivoFijoAccesorio: '',
-      tipoAccesorio: '',
-      marcaAccesorio: '',
-      modeloAccesorio: '',
-      condicionAccesorio: '',
+      accesorios: [],
       observaciones: '',
     });
   };
@@ -983,13 +1075,7 @@ export default function Asignacion() {
       tipoEquipoCelular: '',
       fechaAsignacionCelular: '',
       // Accesorios
-      accesorioId: '',
-      accesorioNombre: '',
-      codigoActivoFijoAccesorio: '',
-      tipoAccesorio: '',
-      marcaAccesorio: '',
-      modeloAccesorio: '',
-      condicionAccesorio: '',
+      accesorios: [],
       observaciones: '',
     });
     setEditingId(null);
@@ -1062,14 +1148,16 @@ export default function Asignacion() {
           }
         }
 
-        // Devolver accesorio a disponible
-        if (asignacionAEliminar.accesorioId) {
-          const accesorio = accesorios.find(a => a.id === asignacionAEliminar.accesorioId);
-          if (accesorio) {
-            console.log('Devolviendo accesorio a disponible (delete):', accesorio.id);
-            await updateDoc(doc(db, 'accesorios', accesorio.id), {
-              asignado: false,
-            });
+        // Devolver accesorios a disponible
+        if (asignacionAEliminar.accesorios && Array.isArray(asignacionAEliminar.accesorios)) {
+          for (const acc of asignacionAEliminar.accesorios) {
+            const accesorio = accesorios.find(a => a.id === acc.id);
+            if (accesorio) {
+              console.log('Devolviendo accesorio a disponible (delete):', accesorio.id);
+              await updateDoc(doc(db, 'accesorios', accesorio.id), {
+                asignado: false,
+              });
+            }
           }
         }
       }
@@ -1333,6 +1421,27 @@ export default function Asignacion() {
       const equipoCompleto = `${asignacion.marca || ''} ${asignacion.modelo || ''}`.trim();
       const observacionesDefault = equipoCompleto ? `Entrega de ${equipoCompleto} con su cargador original y mochila.` : 'Entrega de equipo con su cargador original y mochila.';
       
+      // Procesar accesorios - soportar tanto el nuevo formato (array) como retrocompatibilidad
+      let accesoriosTexto = '';
+      if (Array.isArray(asignacion.accesorios) && asignacion.accesorios.length > 0) {
+        accesoriosTexto = asignacion.accesorios
+          .map(acc => {
+            const serial = acc.serial || acc.numero || acc.numeroSerie || acc.imei || '';
+            return `${acc.codigoActivoFijo} - ${acc.tipoAccesorio}${serial ? ' (' + serial + ')' : ''}`;
+          })
+          .join('; ');
+      } else if (asignacion.codigoActivoFijoAccesorio) {
+        // Retrocompatibilidad con formato anterior - buscar serial en BD
+        let serial = '';
+        if (asignacion.accesorioId) {
+          const accesorioAntiguoDb = accesorios.find(a => a.id === asignacion.accesorioId);
+          if (accesorioAntiguoDb) {
+            serial = accesorioAntiguoDb.serial || accesorioAntiguoDb.numero || accesorioAntiguoDb.numeroSerie || accesorioAntiguoDb.imei || '';
+          }
+        }
+        accesoriosTexto = `${asignacion.codigoActivoFijoAccesorio} - ${asignacion.tipoAccesorio || ''}${serial ? ' (' + serial + ')' : ''}`;
+      }
+      
       return {
         'Sucursal': asignacion.sucursal,
         'Oficina': asignacion.oficina,
@@ -1349,11 +1458,7 @@ export default function Asignacion() {
         'Procesador': asignacion.procesador || '',
         'SO': asignacion.so || '',
         'Licencia': asignacion.licencia || '',
-        'Accesorio Código': asignacion.codigoActivoFijoAccesorio || '',
-        'Accesorio Tipo': asignacion.tipoAccesorio || '',
-        'Accesorio Marca': asignacion.marcaAccesorio || '',
-        'Accesorio Modelo': asignacion.modeloAccesorio || '',
-        'Accesorio Condición': asignacion.condicionAccesorio || '',
+        'Accesorios': accesoriosTexto,
         'Observaciones': asignacion.observaciones || observacionesDefault,
         'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
         'Fecha Asignación': asignacion.fechaAsignacion,
@@ -1369,8 +1474,7 @@ export default function Asignacion() {
       { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
       { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 15 },
       { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 },
-      { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
-      { wch: 15 }, { wch: 20 }, { wch: 25 }
+      { wch: 30 }, { wch: 20 }, { wch: 25 }, { wch: 15 }
     ];
     ws['!cols'] = columnWidths;
 
@@ -1407,35 +1511,51 @@ export default function Asignacion() {
       return;
     }
 
-    const dataExport = asignacionesFiltradas.map(asignacion => ({
-      'Sucursal': asignacion.sucursal,
-      'Oficina': asignacion.oficina,
-      'Puesto': asignacion.puesto,
-      'Nombre': asignacion.nombre,
-      'Usuario': asignacion.usuario,
-      'Empresa': asignacion.empresa,
-      'Equipo': `${asignacion.marca} ${asignacion.modelo}`,
-      'S/N': asignacion.sn,
-      'Código Activo': asignacion.codActivoFijo,
-      'NetBios': asignacion.netbiosName,
-      'Disco': asignacion.disco,
-      'Memoria': asignacion.memoria,
-      'Procesador': asignacion.procesador,
-      'SO': asignacion.so,
-      'Licencia': asignacion.licencia,
-      'Fecha Asignación': asignacion.fechaAsignacion,
-      'Asignado Por': asignacion.asignadoPor,
-      'Celular': asignacion.marcaCelular ? `${asignacion.marcaCelular} ${asignacion.modeloCelular}` : 'N/A',
-      'Serial Celular': asignacion.serialCelular || 'N/A',
-      'IMEI': asignacion.imeiCelular || 'N/A',
-      'Número': asignacion.numeroCelular || 'N/A',
-      'Condición Celular': asignacion.condicionCelular || 'N/A',
-      'Restricción': asignacion.restriccionCelular || 'N/A',
-      'Plan': asignacion.planCelular || 'N/A',
-      'Accesorio': asignacion.accesorioNombre || 'N/A',
-      'Observaciones': asignacion.observaciones,
-      'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
-    }));
+    const dataExport = asignacionesFiltradas.map(asignacion => {
+      // Procesar accesorios - soportar tanto el nuevo formato (array) como retrocompatibilidad
+      let accesoriosTexto = 'N/A';
+      if (Array.isArray(asignacion.accesorios) && asignacion.accesorios.length > 0) {
+        accesoriosTexto = asignacion.accesorios
+          .map(acc => {
+            const serial = acc.serial || acc.numero || acc.numeroSerie || acc.imei || '';
+            return `${acc.codigoActivoFijo} - ${acc.tipoAccesorio}${serial ? ' (' + serial + ')' : ''}`;
+          })
+          .join('; ');
+      } else if (asignacion.accesorioNombre) {
+        // Retrocompatibilidad
+        accesoriosTexto = asignacion.accesorioNombre;
+      }
+      
+      return {
+        'Sucursal': asignacion.sucursal,
+        'Oficina': asignacion.oficina,
+        'Puesto': asignacion.puesto,
+        'Nombre': asignacion.nombre,
+        'Usuario': asignacion.usuario,
+        'Empresa': asignacion.empresa,
+        'Equipo': `${asignacion.marca} ${asignacion.modelo}`,
+        'S/N': asignacion.sn,
+        'Código Activo': asignacion.codActivoFijo,
+        'NetBios': asignacion.netbiosName,
+        'Disco': asignacion.disco,
+        'Memoria': asignacion.memoria,
+        'Procesador': asignacion.procesador,
+        'SO': asignacion.so,
+        'Licencia': asignacion.licencia,
+        'Fecha Asignación': asignacion.fechaAsignacion,
+        'Asignado Por': asignacion.asignadoPor,
+        'Celular': asignacion.marcaCelular ? `${asignacion.marcaCelular} ${asignacion.modeloCelular}` : 'N/A',
+        'Serial Celular': asignacion.serialCelular || 'N/A',
+        'IMEI': asignacion.imeiCelular || 'N/A',
+        'Número': asignacion.numeroCelular || 'N/A',
+        'Condición Celular': asignacion.condicionCelular || 'N/A',
+        'Restricción': asignacion.restriccionCelular || 'N/A',
+        'Plan': asignacion.planCelular || 'N/A',
+        'Accesorios': accesoriosTexto,
+        'Observaciones': asignacion.observaciones,
+        'URL Hoja de Entrega (OneDrive)': asignacion.hojaEntregaUrl || '',
+      };
+    });
 
     const ws = XLSX.utils.json_to_sheet(dataExport);
     const wb = XLSX.utils.book_new();
@@ -2120,16 +2240,17 @@ export default function Asignacion() {
 
               <div className="bg-purple-50 dark:bg-purple-900/20 rounded-2xl border-2 border-purple-100 dark:border-purple-900 p-6">
                 <h3 className="text-lg font-bold text-gray-900 font-manrope mb-4 flex items-center gap-3">
-                  <span className="text-2xl">🔧</span> Accesorios (Opcional)
+                  <span className="text-2xl">🔧</span> Accesorios (Opcional - Múltiples)
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 relative">
-                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Seleccionar Accesorio</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Agregar Accesorios</label>
                     <input
                       type="text"
                       value={searchAccesorio}
                       onChange={(e) => setSearchAccesorio(e.target.value)}
                       onFocus={() => setShowAccesorioDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowAccesorioDropdown(false), 200)}
                       placeholder="Buscar por código o tipo de accesorio..."
                       className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
@@ -2138,12 +2259,11 @@ export default function Asignacion() {
                         {accesorios
                           .filter(acc => {
                             const isAvailable = !acc.asignado;
+                            const accesoriosArray = Array.isArray(formData.accesorios) ? formData.accesorios : [];
+                            const yaAgregado = accesoriosArray.some(a => a.id === acc.id);
                             const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.serial}`.toLowerCase().includes(searchAccesorio.toLowerCase());
                             
-                            const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
-                            const canShow = isAvailable || !!accesorioAsignacionActual;
-                            
-                            return matchesSearch && canShow;
+                            return matchesSearch && isAvailable && !yaAgregado;
                           })
                           .map(acc => (
                             <button
@@ -2151,8 +2271,7 @@ export default function Asignacion() {
                               key={acc.id}
                               onClick={() => {
                                 handleAccesorioChange(acc.id);
-                                setSearchAccesorio(`${acc.codigoActivoFijo} - ${acc.tipoAccesorio}`);
-                                setShowAccesorioDropdown(false);
+                                setSearchAccesorio('');
                               }}
                               className="w-full text-left px-4 py-2.5 hover:bg-purple-50 dark:hover:bg-purple-900/20 text-sm text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-700 last:border-b-0 transition-colors"
                             >
@@ -2162,12 +2281,11 @@ export default function Asignacion() {
                           ))}
                         {searchAccesorio && accesorios.filter(acc => {
                           const isAvailable = !acc.asignado;
+                          const accesoriosArray = Array.isArray(formData.accesorios) ? formData.accesorios : [];
+                          const yaAgregado = accesoriosArray.some(a => a.id === acc.id);
                           const matchesSearch = `${acc.codigoActivoFijo} - ${acc.tipoAccesorio} ${acc.marca} ${acc.serial}`.toLowerCase().includes(searchAccesorio.toLowerCase());
                           
-                          const accesorioAsignacionActual = editingId && formData.accesorioId === acc.id;
-                          const canShow = isAvailable || !!accesorioAsignacionActual;
-                          
-                          return matchesSearch && canShow;
+                          return matchesSearch && isAvailable && !yaAgregado;
                         }).length === 0 && (
                           <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 text-center">
                             No se encontraron accesorios disponibles
@@ -2176,17 +2294,30 @@ export default function Asignacion() {
                       </div>
                     )}
                   </div>
-                  {formData.accesorioId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleAccesorioChange('');
-                        setSearchAccesorio('');
-                      }}
-                      className="col-span-1 md:col-span-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Icon name="trash" /> Quitar accesorio
-                    </button>
+                  
+                  {/* Lista de accesorios agregados */}
+                  {Array.isArray(formData.accesorios) && formData.accesorios.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Accesorios Asignados ({formData.accesorios.length})</label>
+                      <div className="space-y-2">
+                        {formData.accesorios.map((acc, idx) => (
+                          <div key={acc.id} className="flex items-center justify-between bg-white dark:bg-gray-700 p-3 rounded-lg border border-purple-200 dark:border-purple-700">
+                            <div className="flex-1">
+                              <div className="font-semibold text-gray-900 dark:text-gray-100">{acc.codigoActivoFijo}</div>
+                              <div className="text-xs text-gray-600 dark:text-gray-400">{acc.tipoAccesorio} • {acc.marca} {acc.modelo || acc.serial}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAccesorio(acc.id)}
+                              className="ml-2 p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                              title="Remover accesorio"
+                            >
+                              <Icon name="TrashBin" size="sm" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
