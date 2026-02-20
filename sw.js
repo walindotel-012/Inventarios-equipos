@@ -1,8 +1,9 @@
-const CACHE_NAME = 'inventario-equipos-v1';
+const CACHE_NAME = 'inventario-equipos-v2';
 const urlsToCache = [
   '/Inventarios-equipos/',
   '/Inventarios-equipos/index.html',
-  '/Inventarios-equipos/manifest.json'
+  '/Inventarios-equipos/manifest.json',
+  '/Inventarios-equipos/'
 ];
 
 // Instalar service worker
