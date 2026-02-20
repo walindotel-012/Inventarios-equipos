@@ -40,6 +40,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Verificar si es URL válida para Cache API
+  const url = new URL(event.request.url);
+  const canCache = url.protocol === 'http:' || url.protocol === 'https:';
+
+  if (!canCache) {
+    // Dejar pasar requests que no se pueden cachear (chrome-extension, etc)
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {
