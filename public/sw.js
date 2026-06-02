@@ -3,7 +3,7 @@ const urlsToCache = [
   '/Inventarios-equipos/',
   '/Inventarios-equipos/index.html',
   '/Inventarios-equipos/manifest.json',
-  '/Inventarios-equipos/'
+  // No duplicates
 ];
 
 // Instalar service worker
