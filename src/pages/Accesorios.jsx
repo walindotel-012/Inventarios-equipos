@@ -86,10 +86,19 @@ export default function Accesorios() {
     cargarMetadatos();
   }, []);
 
-  // Generar código automático
+  const obtenerUltimoCodigo = () => {
+    return accesorios.reduce((max, acc) => {
+      const match = (acc.codigoActivoFijo || '').match(/^ATM-ACC-(\d+)$/i);
+      if (!match) return max;
+      const numero = Number(match[1]);
+      return Number.isFinite(numero) ? Math.max(max, numero) : max;
+    }, 0);
+  };
+
+  // Generar código automático a partir del último código existente
   const generarCodigo = () => {
-    const contador = accesorios.length + 1;
-    return `ATM-ACC-${String(contador).padStart(4, '0')}`;
+    const ultimoCodigo = obtenerUltimoCodigo();
+    return `ATM-ACC-${String(ultimoCodigo + 1).padStart(4, '0')}`;
   };
 
   // Manejar cambios en el formulario
@@ -289,8 +298,7 @@ export default function Accesorios() {
       let importados = 0;
       let errores = 0;
       let seriesDuplicadas = 0;
-      const proximoCodigo = accesorios.length + 1;
-      let codigoActual = proximoCodigo;
+      let codigoActual = obtenerUltimoCodigo() + 1;
       const seriesYaImportadas = new Set();
 
       for (const linea of lineas) {

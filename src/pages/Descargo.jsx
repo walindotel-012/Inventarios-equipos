@@ -984,7 +984,6 @@ export default function Descargo() {
                             // Buscar la asignación actualizada en el array completo
                             const asignacionActualizada = asignaciones.find(a => a.id === asignacion.id) || asignacion;
                             setSelectedAsignacion(asignacionActualizada);
-                            setSearchTerm('');
                           }}
                           className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${
                             selectedAsignacion?.id === asignacion.id
@@ -1065,7 +1064,7 @@ export default function Descargo() {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
                       <div className="bg-gray-50 rounded-lg p-4 max-h-screen overflow-y-auto border border-gray-200" style={{ height: '600px' }}>
                         <div ref={printRef} style={{ width: '100%' }}>
-                          <DescargoPDFTemplate asignacion={selectedAsignacion} userPermissions={userPermissions} />
+                          <DescargoPDFTemplate asignacion={selectedAsignacion} userPermissions={userPermissions} currentUser={currentUser} />
                         </div>
                       </div>
                     </div>
@@ -1291,7 +1290,7 @@ export default function Descargo() {
 }
 
 // Componente para el template del PDF - Formato FO-TEC-002
-function DescargoPDFTemplate({ asignacion, userPermissions }) {
+function DescargoPDFTemplate({ asignacion, userPermissions, currentUser }) {
   const codigo = 'FO-TEC-002';
   const vigencia = '05-jun-2025';
   const pagina = '1 de 1';
@@ -1329,7 +1328,23 @@ function DescargoPDFTemplate({ asignacion, userPermissions }) {
     });
   }
 
-  if (asignacion.accesorioId && asignacion.accesorioNombre) {
+  // Agregar todos los accesorios del array accesorios
+  if (asignacion.accesorios && Array.isArray(asignacion.accesorios) && asignacion.accesorios.length > 0) {
+    asignacion.accesorios.forEach(accesorio => {
+      if (accesorio && accesorio.tipoAccesorio) {
+        equipos.push({
+          tipo: accesorio.tipoAccesorio || 'Accesorio',
+          cantidad: '1',
+          marca: accesorio.marca || 'N/A',
+          serial: accesorio.codigoActivoFijo || accesorio.serial || '',
+          especificaciones: accesorio.modelo ? `${accesorio.modelo}${accesorio.condicion ? ` (${accesorio.condicion})` : ''}` : (accesorio.condicion || 'Accesorio'),
+        });
+      }
+    });
+  }
+
+  // Mantener compatibilidad con formato anterior (accesorios individuales heredados)
+  if (asignacion.accesorioId && asignacion.accesorioNombre && !asignacion.accesorios) {
     equipos.push({
       tipo: 'Accesorio',
       cantidad: '1',
@@ -1442,7 +1457,7 @@ function DescargoPDFTemplate({ asignacion, userPermissions }) {
               fontSize: '9pt',
               verticalAlign: 'middle'
             }}>
-              {asignacion.asignadoPor || '___________________________________________'}
+              {currentUser?.displayName || currentUser?.email || '___________________________________________'}
             </td>
           </tr>
           <tr>
