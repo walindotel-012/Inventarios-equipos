@@ -1386,7 +1386,7 @@ function DescargoPDFTemplate({ asignacion, userPermissions, currentUser }) {
                       fontFamily: "'Kodchasan', sans-serif"
                     }}>
                       <img 
-                        src="/logo.png" 
+                        src={import.meta.env.BASE_URL + 'logo.png'} 
                         alt="AUTOMÍA Logo"
                         style={{ 
                           // PUEDES MODIFICAR ESTOS VALORES PARA AJUSTAR EL TAMAÑO DEL LOGO

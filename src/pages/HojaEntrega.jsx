@@ -422,7 +422,7 @@ export default function HojaEntrega() {
         <tbody>
           <tr>
             <td style="width: 25%; font-weight: bold; font-size: 12pt; border: 1.5px solid #000; padding: 6px 4px; text-align: center; font-family: 'Kodchasan', sans-serif;">
-              <img src="/logo.png" alt="AUTOMÍA Logo" style="max-width: 100%; height: auto; max-height: 60px; display: block; margin: 0 auto;" />
+              <img src="${import.meta.env.BASE_URL}logo.png" alt="AUTOMÍA Logo" style="max-width: 100%; height: auto; max-height: 60px; display: block; margin: 0 auto;" />
             </td>
             <td style="width: 50%; text-align: center; font-weight: bold; font-size: 11pt; border: 1.5px solid #000; padding: 6px 4px; vertical-align: middle;">
               Formulario de Entrega de Equipos
@@ -1199,7 +1199,7 @@ export default function HojaEntrega() {
                       fontFamily: "'Kodchasan', sans-serif"
                     }}>
                       <img 
-                        src="/logo.png" 
+                        src={import.meta.env.BASE_URL + 'logo.png'} 
                         alt="AUTOMÍA Logo"
                         style={{ 
                           // PUEDES MODIFICAR ESTOS VALORES PARA AJUSTAR EL TAMAÑO DEL LOGO

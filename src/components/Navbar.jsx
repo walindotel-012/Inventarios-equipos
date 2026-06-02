@@ -84,7 +84,7 @@ export default function Navbar() {
             {/* Logo */}
             <Link to="/" className="flex items-center gap-3 flex-shrink-0">
               <img 
-                src="/logo.png" 
+                src={import.meta.env.BASE_URL + 'logo.png'} 
                 alt="AUTOMÍA Logo"
                 style={{ 
                   maxWidth: '100%',
