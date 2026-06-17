@@ -6,8 +6,8 @@
     <title>Redirigiendo...</title>
     <script>
       // Redirigir cualquier 404 a index.html para que React Router maneje las rutas
-      const path = window.location.pathname.replace(/^\/Inventarios-equipos/, '');
-      window.location.replace('/Inventarios-equipos/?redirect=' + encodeURIComponent(path));
+      const path = window.location.pathname;
+      window.location.replace('/?redirect=' + encodeURIComponent(path));
     </script>
   </head>
   <body>

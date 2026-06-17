@@ -1,8 +1,8 @@
 const CACHE_NAME = 'inventario-equipos-v2';
 const urlsToCache = [
-  '/Inventarios-equipos/',
-  '/Inventarios-equipos/index.html',
-  '/Inventarios-equipos/manifest.json',
+  '/',
+  '/index.html',
+  '/manifest.json',
   // No duplicates
 ];
 
@@ -73,7 +73,7 @@ self.addEventListener('fetch', (event) => {
             return response;
           }
           // Devolver página de offline si es necesario
-          return caches.match('/Inventarios-equipos/index.html');
+          return caches.match('/index.html');
         });
       })
   );

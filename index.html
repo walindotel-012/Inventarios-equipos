@@ -2,7 +2,7 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/Inventarios-equipos/icon-192x192.png" />
+    <link rel="icon" type="image/png" href="/icon-192x192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Sistema de gestión de inventario de equipos de TI para AUTOMÍA" />
     <meta name="theme-color" content="#003399" />
@@ -10,8 +10,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Inventario" />
-    <link rel="apple-touch-icon" href="/Inventarios-equipos/apple-touch-icon-180x180.png" />
-    <link rel="manifest" href="/Inventarios-equipos/manifest.json" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Inventario de Equipos</title>
     <!-- Google Fonts - Kodchasan -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -20,8 +20,8 @@
       href="https://fonts.googleapis.com/css2?family=Kodchasan:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="/Inventarios-equipos/assets/index-Bx25x-Z8.js"></script>
-    <link rel="stylesheet" crossorigin href="/Inventarios-equipos/assets/index-CkXI4Ubh.css">
+    <script type="module" crossorigin src="/assets/index-BdYYc5Io.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-ByvJXMCr.css">
   </head>
   <body>
     <div id="root"></div>
@@ -30,7 +30,7 @@
       // Registrar Service Worker
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js')
+          navigator.serviceWorker.register('/sw.js')
             .then((registration) => {
               console.log('Service Worker registrado:', registration);
             })
