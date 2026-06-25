@@ -44,7 +44,8 @@ export default function Accesorios() {
     condicion: '',
     marca: '',
     modelo: '',
-    serial: ''
+    serial: '',
+    estado: 'disponible',
   });
 
   // Cargar accesorios en tiempo real
@@ -128,6 +129,7 @@ export default function Accesorios() {
         codigoActivoFijo: codigo,
         tipoAccesorio: formData.tipoAccesorio,
         condicion: formData.condicion,
+        estado: formData.estado,
         marca: formData.marca,
         modelo: formData.modelo,
         serial: formData.serial,
@@ -150,7 +152,10 @@ export default function Accesorios() {
 
   // Editar accesorio
   const handleEdit = (accesorio) => {
-    setFormData(accesorio);
+    setFormData({
+      ...accesorio,
+      estado: accesorio.estado || 'disponible',
+    });
     setEditingId(accesorio.id);
     setShowForm(true);
   };
@@ -180,6 +185,7 @@ export default function Accesorios() {
       marca: '',
       modelo: '',
       serial: '',
+      estado: 'disponible',
       asignado: false
     });
     setEditingId(null);
@@ -234,6 +240,9 @@ export default function Accesorios() {
 
     return matchCodigo && matchTipo && matchMarca && matchModelo && matchSerial && matchCondicion;
   });
+
+  const totalAccesorios = accesorios.length;
+  const filtrosActivos = Object.values(filtros).some((valor) => valor);
 
   // Exportar accesorios a Excel
   const handleExportarExcel = () => {
@@ -544,6 +553,12 @@ export default function Accesorios() {
                     </button>
                   )}
                 </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {filtrosActivos
+                    ? `Mostrando ${filteredAccesorios.length} de ${totalAccesorios} accesorios filtrados`
+                    : `Total de accesorios: ${totalAccesorios}`}
+                </div>
+              </div>
 
                 {/* Filtros Avanzados */}
                 {showFilters && (
@@ -648,7 +663,6 @@ export default function Accesorios() {
                     </div>
                   </div>
                 )}
-              </div>
 
               {/* Tabla */}
               <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
@@ -791,6 +805,23 @@ export default function Accesorios() {
                     {CONDICIONES.map((cond) => (
                       <option key={cond} value={cond}>{cond}</option>
                     ))}
+                  </select>
+                </div>
+
+                {/* Estado */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Estado *</label>
+                  <select
+                    name="estado"
+                    value={formData.estado}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl text-sm dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="disponible">Disponible</option>
+                    <option value="asignado">Asignado</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="equipos en mantenimiento">Equipos en mantenimiento</option>
+                    <option value="inactivos">Inactivos</option>
                   </select>
                 </div>
 

@@ -1,326 +1,357 @@
-import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
-import { collection, getDocs, deleteDoc } from 'firebase/firestore';
+﻿import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import Icon from '../components/Icon';
 import { useAuth } from '../contexts/AuthContext';
+import DashboardLayout from '../components/dashboard/DashboardLayout';
+import Sidebar from '../components/dashboard/Sidebar';
+import Header from '../components/dashboard/Header';
+import KpiCard from '../components/dashboard/KpiCard';
+import RecentActivityTable from '../components/dashboard/RecentActivityTable';
+import DepartmentChart from '../components/dashboard/DepartmentChart';
+import InventoryDonut from '../components/dashboard/InventoryDonut';
+import AssignmentDonut from '../components/dashboard/AssignmentDonut';
+import AlertsPanel from '../components/dashboard/AlertsPanel';
+import Icon from '../components/Icon';
+
+const normalizeStatus = (status) => (typeof status === 'string' ? status.toLowerCase() : '');
+const makePercent = (value, total) => (!total ? 0 : Math.round((value / total) * 100));
 
 export default function Dashboard() {
-  const { userPermissions, currentUser } = useAuth();
-  const [stats, setStats] = useState({
-    equipos: 0,
-    celulares: 0,
-    nomenclaturas: 0,
-    asignaciones: 0,
-    accesorios: 0,
-    disponibles: 0,
-    entregas: 0,
-    descargos: 0
-  });
+  const { currentUser } = useAuth();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [equipos, setEquipos] = useState([]);
+  const [celulares, setCelulares] = useState([]);
+  const [accesorios, setAccesorios] = useState([]);
+  const [nomenclaturas, setNomenclaturas] = useState([]);
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [descargos, setDescargos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isClearing, setIsClearing] = useState(false);
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   useEffect(() => {
-    loadStats();
-    
-    // Recargar estadísticas cuando el usuario vuelve a la pestaña/ventana
-    window.addEventListener('focus', loadStats);
-    return () => window.removeEventListener('focus', loadStats);
+    setLoading(true);
+
+    const unsubEquipos = onSnapshot(
+      collection(db, 'equipos'),
+      (snapshot) => {
+        setEquipos(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando equipos:', error);
+        setLoading(false);
+      }
+    );
+
+    const unsubCelulares = onSnapshot(
+      collection(db, 'celulares'),
+      (snapshot) => {
+        setCelulares(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando celulares:', error);
+        setLoading(false);
+      }
+    );
+
+    const unsubAccesorios = onSnapshot(
+      collection(db, 'accesorios'),
+      (snapshot) => {
+        setAccesorios(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando accesorios:', error);
+        setLoading(false);
+      }
+    );
+
+    const unsubNomenclaturas = onSnapshot(
+      collection(db, 'nomenclaturas'),
+      (snapshot) => {
+        setNomenclaturas(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando nomenclaturas:', error);
+        setLoading(false);
+      }
+    );
+
+    const unsubAsignaciones = onSnapshot(
+      collection(db, 'asignaciones'),
+      (snapshot) => {
+        setAsignaciones(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando asignaciones:', error);
+        setLoading(false);
+      }
+    );
+
+    const unsubDescargos = onSnapshot(
+      collection(db, 'descargos'),
+      (snapshot) => {
+        setDescargos(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error cargando descargos:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      unsubEquipos();
+      unsubCelulares();
+      unsubAccesorios();
+      unsubNomenclaturas();
+      unsubAsignaciones();
+      unsubDescargos();
+    };
   }, []);
 
-  const loadStats = async () => {
-    try {
-      setLoading(true);
-      
-      const equiposSnapshot = await getDocs(collection(db, 'equipos'));
-      const celularesSnapshot = await getDocs(collection(db, 'celulares'));
-      const nomenclaturaSnapshot = await getDocs(collection(db, 'nomenclaturas'));
-      const asignacionesSnapshot = await getDocs(collection(db, 'asignaciones'));
-      const accesoriosSnapshot = await getDocs(collection(db, 'accesorios'));
-      const descargosSnapshot = await getDocs(collection(db, 'descargos'));
+  const equiposDisponibles = useMemo(
+    () => equipos.filter((item) => !item.asignado || normalizeStatus(item.estado) === 'disponible').length,
+    [equipos]
+  );
 
-      const equiposList = equiposSnapshot.docs.map(doc => doc.data());
-      const celularesList = celularesSnapshot.docs.map(doc => doc.data());
-      const asignacionesList = asignacionesSnapshot.docs.map(doc => doc.data());
-      const accesoriosList = accesoriosSnapshot.docs.map(doc => doc.data());
+  const celularesDisponibles = useMemo(
+    () => celulares.filter((item) => !item.asignado || normalizeStatus(item.estado) === 'disponible').length,
+    [celulares]
+  );
 
-      // Contar equipos disponibles (usando el estado de la tabla de equipos como fuente de verdad)
-      const equiposDisponibles = equiposList.filter(e => !e.asignado || e.estado === 'disponible').length;
-      // Contar celulares disponibles (usando el estado de la tabla de celulares como fuente de verdad)
-      const celularesDisponibles = celularesList.filter(c => !c.asignado || c.estado === 'disponible').length;
-      // Contar accesorios disponibles
-      const accesoriosDisponibles = accesoriosList.filter(a => !a.asignado).length;
+  const accesoriosDisponibles = useMemo(
+    () => accesorios.filter((item) => !item.asignado || normalizeStatus(item.estado) === 'disponible').length,
+    [accesorios]
+  );
 
-      const totalDisponibles = equiposDisponibles + celularesDisponibles + accesoriosDisponibles;
+  const totalDisponibles = equiposDisponibles + celularesDisponibles + accesoriosDisponibles;
 
-      // Contar entregas: igual al total de asignaciones
-      const entregasCount = asignacionesList.length;
+  const asignadosCount = useMemo(() => {
+    const equiposCount = equipos.filter((item) => item.asignado || normalizeStatus(item.estado) === 'asignado').length;
+    const celularesCount = celulares.filter((item) => item.asignado || normalizeStatus(item.estado) === 'asignado').length;
+    const accesoriosCount = accesorios.filter((item) => item.asignado || normalizeStatus(item.estado) === 'asignado').length;
+    return equiposCount + celularesCount + accesoriosCount;
+  }, [equipos, celulares, accesorios]);
 
-      setStats({
-        equipos: equiposList.length,
-        celulares: celularesList.length,
-        nomenclaturas: nomenclaturaSnapshot.size,
-        asignaciones: asignacionesSnapshot.size,
-        accesorios: accesoriosSnapshot.size,
-        disponibles: totalDisponibles,
-        entregas: entregasCount,
-        descargos: descargosSnapshot.size
+  const mantenimientoCount = useMemo(() => {
+    const valores = ['mantenimiento', 'revisión', 'revision', 'equipos en mantenimiento', 'en mantenimiento'];
+    const equiposCount = equipos.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    const celularesCount = celulares.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    const accesoriosCount = accesorios.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    return equiposCount + celularesCount + accesoriosCount;
+  }, [equipos, celulares, accesorios]);
+
+  const inactivosCount = useMemo(() => {
+    const valores = ['inactivo', 'retirado', 'baja'];
+    const equiposCount = equipos.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    const celularesCount = celulares.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    const accesoriosCount = accesorios.filter((item) => valores.includes(normalizeStatus(item.estado))).length;
+    return equiposCount + celularesCount + accesoriosCount;
+  }, [equipos, celulares, accesorios]);
+
+  const asignacionesActivas = useMemo(
+    () => asignaciones.filter((item) => ['asignado', 'entregado', 'activo'].includes(normalizeStatus(item.estado)) || !item.estado).length,
+    [asignaciones]
+  );
+
+  const asignacionesPendientes = useMemo(
+    () => asignaciones.filter((item) => ['pendiente', 'por asignar', 'en espera'].includes(normalizeStatus(item.estado))).length,
+    [asignaciones]
+  );
+
+  const asignacionesFinalizadas = useMemo(
+    () => asignaciones.filter((item) => ['finalizado', 'descargado', 'completado'].includes(normalizeStatus(item.estado))).length,
+    [asignaciones]
+  );
+
+  const recentActivity = useMemo(() => {
+    const events = [];
+
+    asignaciones.forEach((item) => {
+      const date = item.fechaAsignacion || item.fechaEntrega || item.createdAt || item.fecha || '';
+      events.push({
+        id: `asignacion-${item.id}`,
+        date,
+        user: item.asignadoPor || item.usuario || item.nombre || 'Sistema',
+        action: 'Asignación',
+        detail: item.nombre
+          ? `Equipo ${item.tipoEquipo || 'principal'} a ${item.nombre}`
+          : item.codActivoFijo
+          ? `Equipo ${item.codActivoFijo}`
+          : 'Asignación registrada',
+        color: 'bg-blue-100 text-blue-700',
+        sortDate: new Date(date).getTime() || 0,
       });
-    } catch (error) {
-      console.error('Error cargando estadísticas:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
 
-  const clearAllData = async () => {
-    try {
-      setIsClearing(true);
-      const collections = ['equipos', 'celulares', 'nomenclaturas', 'asignaciones', 'entregas', 'descargos'];
-      
-      for (const collectionName of collections) {
-        const querySnapshot = await getDocs(collection(db, collectionName));
-        for (const doc of querySnapshot.docs) {
-          await deleteDoc(doc.ref);
-        }
-      }
-      
-      setShowClearConfirm(false);
-      loadStats();
-      alert('✓ Base de datos limpiada exitosamente');
-    } catch (error) {
-      console.error('Error al limpiar base de datos:', error);
-      alert('✗ Error al limpiar la base de datos: ' + error.message);
-    } finally {
-      setIsClearing(false);
-    }
-  };
+    descargos.forEach((item) => {
+      const date = item.fechaDescargo || item.fechaRegistroDescargo || item.createdAt || item.fecha || '';
+      events.push({
+        id: `descargo-${item.id}`,
+        date,
+        user: item.usuarioDescargo || item.usuario || item.nombre || 'Sistema',
+        action: 'Descargo',
+        detail: item.codActivoFijo
+          ? `Descargó ${item.codActivoFijo}`
+          : item.serialCelular
+          ? `Descargó ${item.serialCelular}`
+          : 'Descargo registrado',
+        color: 'bg-rose-100 text-rose-700',
+        sortDate: new Date(date).getTime() || 0,
+      });
+    });
+
+    return events
+      .sort((a, b) => b.sortDate - a.sortDate)
+      .slice(0, 4)
+      .map(({ sortDate, ...rest }) => rest);
+  }, [asignaciones, descargos]);
+
+  const departmentData = useMemo(() => {
+    const counts = asignaciones.reduce((acc, item) => {
+      const key = item.sucursal || item.puesto || 'Sin área';
+      if (!key) return acc;
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+
+    return Object.entries(counts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([name, value]) => ({ name, value }));
+  }, [asignaciones]);
+
+  const totalInventory = totalDisponibles + asignadosCount + mantenimientoCount + inactivosCount;
+  const inventoryData = useMemo(
+    () => [
+      { name: 'Disponibles', value: totalDisponibles, percent: makePercent(totalDisponibles, totalInventory) },
+      { name: 'Asignados', value: asignadosCount, percent: makePercent(asignadosCount, totalInventory) },
+      { name: 'Mantenimiento', value: mantenimientoCount, percent: makePercent(mantenimientoCount, totalInventory) },
+      { name: 'Inactivos', value: inactivosCount, percent: makePercent(inactivosCount, totalInventory) },
+    ],
+    [totalDisponibles, asignadosCount, mantenimientoCount, inactivosCount, totalInventory]
+  );
+
+  const assignmentTotal = asignacionesActivas + asignacionesPendientes + asignacionesFinalizadas;
+  const assignmentData = useMemo(
+    () => [
+      { name: 'Activas', value: asignacionesActivas, percent: makePercent(asignacionesActivas, assignmentTotal) },
+      { name: 'Pendientes', value: asignacionesPendientes, percent: makePercent(asignacionesPendientes, assignmentTotal) },
+      { name: 'Finalizadas', value: asignacionesFinalizadas, percent: makePercent(asignacionesFinalizadas, assignmentTotal) },
+    ],
+    [asignacionesActivas, asignacionesPendientes, asignacionesFinalizadas, assignmentTotal]
+  );
 
   const statCards = [
-    { title: 'Equipos', value: stats.equipos, icon: 'LaptopOutline', bg: 'bg-blue-50', textColor: 'text-blue-600', gradStart: '#60a5fa', gradEnd: '#3b82f6', path: '/equipos', moduloId: 'equipos' },
-    { title: 'Celulares', value: stats.celulares, icon: 'PhonePortraitOutline', bg: 'bg-green-50', textColor: 'text-green-600', gradStart: '#34d399', gradEnd: '#10b981', path: '/celulares', moduloId: 'celulares' },
-    { title: 'Nomenclaturas', value: stats.nomenclaturas, icon: 'PeopleOutline', bg: 'bg-purple-50', textColor: 'text-purple-600', gradStart: '#c084fc', gradEnd: '#a855f7', path: '/nomenclaturas', moduloId: 'nomenclaturas' },
-    { title: 'Asignaciones', value: stats.asignaciones, icon: 'LinkOutline', bg: 'bg-yellow-50', textColor: 'text-yellow-600', gradStart: '#fcd34d', gradEnd: '#f59e0b', path: '/asignacion', moduloId: 'asignacion' },
-    { title: 'Accesorios', value: stats.accesorios, icon: 'Hammer', bg: 'bg-indigo-50', textColor: 'text-indigo-600', gradStart: '#818cf8', gradEnd: '#6366f1', path: '/accesorios', moduloId: 'accesorios' },
-    { title: 'Disponibles', value: stats.disponibles, icon: 'CheckmarkCircleOutline', bg: 'bg-pink-50', textColor: 'text-pink-600', gradStart: '#f472b6', gradEnd: '#ec4899', path: '/equipos-disponibles', moduloId: 'equipos-disponibles' },
-    { title: 'Entregas', value: stats.entregas, icon: 'DocumentOutline', bg: 'bg-orange-50', textColor: 'text-orange-600', gradStart: '#fb923c', gradEnd: '#f97316', path: '/hoja-entrega', moduloId: 'hoja-entrega' },
-    { title: 'Descargos', value: stats.descargos, icon: 'TrashOutline', bg: 'bg-red-50', textColor: 'text-red-600', gradStart: '#f87171', gradEnd: '#ef4444', path: '/descargo', moduloId: 'descargo' },
+    {
+      title: 'Equipos',
+      value: equipos.length,
+      subtitle: 'Total registrados',
+      trend: 'Actualizado desde inventario',
+      color: 'bg-emerald-100 text-emerald-700',
+      iconBg: 'bg-blue-50',
+      icon: <Icon name="LaptopOutline" size="sm" color="#2563eb" />,
+    },
+    {
+      title: 'Celulares',
+      value: celulares.length,
+      subtitle: 'Total registrados',
+      trend: 'Actualizado desde inventario',
+      color: 'bg-emerald-100 text-emerald-700',
+      iconBg: 'bg-emerald-50',
+      icon: <Icon name="PhonePortraitOutline" size="sm" color="#059669" />,
+    },
+    {
+      title: 'Nomenclaturas',
+      value: nomenclaturas.length,
+      subtitle: 'Total usuarios',
+      trend: 'Actualizado desde registro real',
+      color: 'bg-emerald-100 text-emerald-700',
+      iconBg: 'bg-violet-50',
+      icon: <Icon name="PeopleOutline" size="sm" color="#7c3aed" />,
+    },
+    {
+      title: 'Accesorios',
+      value: accesorios.length,
+      subtitle: 'Total registrados',
+      trend: 'Actualizado desde inventario',
+      color: 'bg-rose-100 text-rose-700',
+      iconBg: 'bg-orange-50',
+      icon: <Icon name="Hammer" size="sm" color="#ea580c" />,
+    },
   ];
-
-  // Acciones rápidas disponibles
-  const allQuickActions = [
-    { id: 'equipos', path: '/equipos?form=true', title: 'Registrar Equipo', description: 'Agregar nuevo dispositivo', icon: 'AddOutline', bg: 'bg-blue-100', color: 'primary', hoverColor: 'bg-blue-200', borderColor: 'hover:border-blue-300' },
-    { id: 'celulares', path: '/celulares?form=true', title: 'Registrar Celular', description: 'Agregar nuevo teléfono', icon: 'AddOutline', bg: 'bg-green-100', color: '#10b981', hoverColor: 'bg-green-200', borderColor: 'hover:border-green-300' },
-    { id: 'accesorios', path: '/accesorios?form=true', title: 'Registrar Accesorio', description: 'Agregar nuevo accesorio', icon: 'AddOutline', bg: 'bg-indigo-100', color: '#6366f1', hoverColor: 'bg-indigo-200', borderColor: 'hover:border-indigo-300' },
-    { id: 'asignacion', path: '/asignacion?form=true', title: 'Registrar Asignación', description: 'Vincular bienes a usuarios', icon: 'AddOutline', bg: 'bg-purple-100', color: '#a855f7', hoverColor: 'bg-purple-200', borderColor: 'hover:border-purple-300' },
-  ];
-
-  // Filtrar acciones rápidas según permisos
-  const getVisibleQuickActions = () => {
-    const isAdmin = userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com';
-    
-    if (isAdmin) {
-      return allQuickActions; // Los admins ven todas las acciones
-    }
-
-    // Los usuarios no-admin solo ven las acciones de módulos permitidos
-    const modulosPermitidos = userPermissions?.modulos || [];
-    return allQuickActions.filter(action => 
-      modulosPermitidos.includes(action.id)
-    );
-  };
-
-  // Filtrar tarjetas de estadísticas según permisos
-  const getVisibleStatCards = () => {
-    const isAdmin = userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com';
-    
-    if (isAdmin) {
-      return statCards; // Los admins ven todas las tarjetas
-    }
-
-    // Los usuarios no-admin solo ven las tarjetas de módulos permitidos
-    const modulosPermitidos = userPermissions?.modulos || [];
-    return statCards.filter(card => 
-      modulosPermitidos.includes(card.moduloId)
-    );
-  };
-
-  const quickActions = getVisibleQuickActions();
-  const visibleStatCards = getVisibleStatCards();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold text-gray-900 font-manrope mb-2">Dashboard</h1>
-          <p className="text-gray-600 text-base">Bienvenido al sistema de gestión de inventario</p>
+    <DashboardLayout
+      sidebar={<Sidebar activePath={location.pathname} />}
+      header={<Header onToggleSidebar={() => setSidebarOpen((prev) => !prev)} />}
+      mobileSidebar={sidebarOpen ? (
+        <div className="fixed inset-0 z-50 flex xl:hidden">
+          <div className="absolute inset-0 bg-slate-900/50" onClick={() => setSidebarOpen(false)} />
+          <div className="relative z-10 h-full w-72 overflow-y-auto bg-white shadow-2xl">
+            <Sidebar activePath={location.pathname} />
+          </div>
         </div>
+      ) : null}
+      sidebarOpen={sidebarOpen}
+    >
+      <div className="space-y-6">
+        <section className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <p className="text-sm uppercase tracking-[0.35em] text-slate-400">Dashboard</p>
+              <h1 className="mt-2 text-3xl font-semibold text-slate-900">Resumen general del sistema de gestión de inventario</h1>
+              <p className="mt-2 text-sm text-slate-500">Todos los datos se generan a partir de la base de datos real del sistema.</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-4">
+          {statCards.map((card) => (
+            <KpiCard key={card.title} {...card} />
+          ))}
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-[60%_40%]">
+          <RecentActivityTable activities={recentActivity} />
+          <DepartmentChart data={departmentData} />
+        </section>
+
+        <section className="grid gap-6 lg:grid-cols-3">
+          <InventoryDonut data={inventoryData} />
+          <AssignmentDonut data={assignmentData} />
+          <AlertsPanel
+            alerts={[
+              {
+                title: 'Equipos en mantenimiento',
+                detail: `${mantenimientoCount} activos requieren revisión`,
+                badge: mantenimientoCount,
+                icon: 'WrenchOutline',
+                color: 'bg-slate-100 text-slate-900',
+              },
+              {
+                title: 'Asignaciones pendientes',
+                detail: `${asignacionesPendientes} tareas sin completar`,
+                badge: asignacionesPendientes,
+                icon: 'ClockOutline',
+                color: 'bg-amber-100 text-amber-900',
+              },
+              {
+                title: 'Descargos registrados',
+                detail: `${descargos.length} descargos totales`,
+                badge: descargos.length,
+                icon: 'AlertCircleOutline',
+                color: 'bg-rose-100 text-rose-900',
+              },
+            ]}
+          />
+        </section>
       </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-6 mb-12">
-          {loading ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-base">Cargando estadísticas...</p>
-            </div>
-          ) : visibleStatCards.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <Icon name="PeopleOutline" size="lg" color="gray" className="mx-auto mb-4" />
-              <p className="text-gray-500 text-base">No tienes módulos asignados. Contacta al administrador.</p>
-            </div>
-          ) : (
-            visibleStatCards.map((card, idx) => (
-              <Link
-                key={idx}
-                to={card.path}
-                className="group cursor-pointer transform transition-all duration-300 hover:-translate-y-1"
-              >
-                <div className={`card-saas ${card.bg} border-2 border-transparent hover:border-gray-200`}>
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="w-12 h-12 bg-gradient-to-br rounded-2xl flex items-center justify-center shadow-md group-hover:shadow-lg transition-shadow"
-                      style={{
-                        backgroundImage: `linear-gradient(135deg, ${card.gradStart}, ${card.gradEnd})`
-                      }}
-                    >
-                      <Icon name={card.icon} size="md" color="white" />
-                    </div>
-                    <Icon name="ChevronForwardOutline" size="sm" color="neutral" className="group-hover:text-gray-600 transition-colors" />
-                  </div>
-                  <h3 className="text-gray-600 text-sm font-semibold mb-1">{card.title}</h3>
-                  <p className={`text-4xl font-bold ${card.textColor} font-manrope`}>{card.value}</p>
-                </div>
-              </Link>
-            ))
-          )}
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-12">
-          <h2 className="text-xl font-bold text-gray-900 font-manrope mb-6">Acciones Rápidas</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {quickActions.map(action => (
-              <Link key={action.id} to={action.path} className={`group px-6 py-4 bg-white border-2 border-gray-100 rounded-2xl ${action.borderColor} hover:shadow-md transition-all flex items-center gap-3`}>
-                <div className={`w-10 h-10 ${action.bg} rounded-xl flex items-center justify-center group-hover:${action.hoverColor} transition-colors`}>
-                  <Icon name={action.icon} size="sm" color={action.color} />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900">{action.title}</p>
-                  <p className="text-sm text-gray-500">{action.description}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* Info Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="card-saas bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-blue-900 font-manrope mb-2 flex items-center gap-2">
-                <Icon name="InformationCircleOutline" size="md" color="#1e3a8a" />
-                Módulos Disponibles
-              </h3>
-              <p className="text-blue-700 text-sm">Tu sistema tiene acceso a estos módulos:</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-blue-600 text-sm">• <span className="font-semibold">Equipos</span> - Gestión de dispositivos</p>
-              <p className="text-blue-600 text-sm">• <span className="font-semibold">Celulares</span> - Gestión de teléfonos</p>
-              <p className="text-blue-600 text-sm">• <span className="font-semibold">Nomenclaturas</span> - Base de datos de usuarios</p>
-              <p className="text-blue-600 text-sm">• <span className="font-semibold">Asignaciones</span> - Vinculación de bienes</p>
-              <p className="text-blue-600 text-sm">• <span className="font-semibold">Entregas</span> - Generación de hojas</p>
-            </div>
-          </div>
-
-          <div className="card-saas bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200">
-            <div className="mb-4">
-              <h3 className="text-lg font-bold text-green-900 font-manrope mb-2 flex items-center gap-2">
-                <Icon name="CheckmarkCircleOutline" size="md" color="#15803d" />
-                Tips de Uso
-              </h3>
-              <p className="text-green-700 text-sm">Consejos para optimizar tu experiencia:</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-green-600 text-sm">• Registra todos tus equipos antes de hacer asignaciones</p>
-              <p className="text-green-600 text-sm">• Usa descripciones claras en los campos de especificaciones</p>
-              <p className="text-green-600 text-sm">• Guarda copias de las hojas de entrega generadas</p>
-              <p className="text-green-600 text-sm">• Mantén actualizado el estado y condición de los equipos</p>
-              <p className="text-green-600 text-sm">• Exporta datos regularmente para respaldo</p>
-            </div>
-          </div>
-        </div>
-
-       {/* Admin Section - Oculto */}
-        {/* <div className="mt-12 pt-8 border-t-2 border-gray-200">
-          <h2 className="text-lg font-bold text-gray-900 font-manrope mb-4">Administración</h2>
-          <div className="card-saas bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-red-900 font-manrope mb-2 flex items-center gap-2">
-                  <Icon name="TrashOutline" size="md" color="#991b1b" />
-                  Limpiar Base de Datos
-                </h3>
-                <p className="text-red-700 text-sm mb-4">Elimina todos los registros del sistema. <span className="font-semibold">Esta acción no se puede deshacer.</span></p>
-              </div>
-              <button
-                onClick={() => setShowClearConfirm(true)}
-                disabled={isClearing}
-                className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
-              >
-                <Icon name="TrashOutline" size="sm" color="white" />
-                {isClearing ? 'Limpiando...' : 'Limpiar'}
-              </button>
-            </div>
-          </div>
-        </div> */}
-      </div>
-
-      {/* Clear Confirmation Modal - Oculto */}
-      {/* {showClearConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                <Icon name="AlertCircleOutline" size="md" color="#991b1b" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900">⚠️ Confirmar eliminación</h2>
-            </div>
-            
-            <p className="text-gray-700 text-sm mb-2">Esta acción eliminará <span className="font-semibold">TODOS</span> los registros de:</p>
-            <ul className="text-gray-600 text-sm space-y-1 mb-6 pl-4">
-              <li>• Equipos ({stats.equipos})</li>
-              <li>• Celulares ({stats.celulares})</li>
-              <li>• Nomenclaturas ({stats.nomenclaturas})</li>
-              <li>• Asignaciones ({stats.asignaciones})</li>
-              <li>• Entregas ({stats.entregas})</li>
-              <li>• Descargos ({stats.descargos})</li>
-            </ul>
-
-            <p className="text-red-700 font-semibold text-sm mb-6">⚠️ Esta acción NO se puede deshacer.</p>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowClearConfirm(false)}
-                disabled={isClearing}
-                className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={clearAllData}
-                disabled={isClearing}
-                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors"
-              >
-                {isClearing ? 'Limpiando...' : 'Eliminar Todo'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )} */}
-    </div>
+    </DashboardLayout>
   );
 }

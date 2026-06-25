@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
-import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
 import Icon from '../components/Icon';
 import { useToastManager } from '../hooks/useToastManager';
@@ -26,7 +25,6 @@ const ACCIONES = {
 };
 
 export default function AuditLog() {
-  const { currentUser } = useAuth();
   const { toast, showToast, hideToast } = useToastManager();
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +36,8 @@ export default function AuditLog() {
     fechaFin: '',
   });
   const [usuarios, setUsuarios] = useState([]);
+  const [usuariosSistema, setUsuariosSistema] = useState([]);
+  const [usuarioLogs, setUsuarioLogs] = useState([]);
 
   useEffect(() => {
     // Obtener logs en tiempo real
@@ -51,9 +51,9 @@ export default function AuditLog() {
         }));
         setLogs(logsList);
         
-        // Extraer usuarios únicos
+        // Extraer usuarios únicos de la bitácora
         const usuariosUnicos = [...new Set(logsList.map(log => log.userName))].filter(Boolean).sort();
-        setUsuarios(usuariosUnicos);
+        setUsuarioLogs(usuariosUnicos);
       } catch (error) {
         console.error('Error loading audit logs:', error);
         showToast('Error al cargar la bitácora', 'error');
@@ -68,6 +68,30 @@ export default function AuditLog() {
 
     return () => unsubscribe();
   }, [showToast]);
+
+  useEffect(() => {
+    const loadUsuariosSistema = async () => {
+      try {
+        const permisosSnapshot = await getDocs(collection(db, 'permisos'));
+        const usuariosPermisos = permisosSnapshot.docs
+          .map(doc => doc.data())
+          .filter(data => data.estado !== 'revocado')
+          .map(data => data.nombre || data.email)
+          .filter(Boolean);
+
+        setUsuariosSistema([...new Set(usuariosPermisos)].sort());
+      } catch (error) {
+        console.error('Error loading user permissions:', error);
+      }
+    };
+
+    loadUsuariosSistema();
+  }, []);
+
+  useEffect(() => {
+    const mergedUsers = [...new Set([...usuarioLogs, ...usuariosSistema])].sort();
+    setUsuarios(mergedUsers);
+  }, [usuarioLogs, usuariosSistema]);
 
   const logsFiltrados = logs.filter(log => {
     const matchModulo = !filtros.modulo || log.module === filtros.modulo;
@@ -92,7 +116,7 @@ export default function AuditLog() {
           fechaFin.setHours(23, 59, 59, 999);
           matchFecha = matchFecha && logTime <= fechaFin.getTime();
         }
-      } catch (e) {
+      } catch {
         matchFecha = true;
       }
     }

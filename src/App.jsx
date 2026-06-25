@@ -1,4 +1,4 @@
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Login from './pages/Login';
@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import Equipos from './pages/Equipos';
 import Nomenclaturas from './pages/Nomenclaturas';
 import Asignacion from './pages/Asignacion';
+import Usuarios from './pages/Usuarios';
 import HojaEntrega from './pages/HojaEntrega';
 import Descargo from './pages/Descargo';
 import Celulares from './pages/Celulares';
@@ -15,6 +16,9 @@ import IconShowcase from './pages/IconShowcase';
 import AdminPermisos from './pages/AdminPermisos';
 import Bitacora from './pages/Bitacora';
 import UpdateAcesoriosPage from './pages/UpdateAcesoriosPage';
+import Reportes from './pages/Reportes';
+import Mantenimiento from './pages/Mantenimiento';
+import Configuracion from './pages/Configuracion';
 import Navbar from './components/Navbar';
 
 function ProtectedRoute({ children }) {
@@ -43,39 +47,52 @@ function App() {
     <Router>
       <ThemeProvider>
         <AuthProvider>
-          <Routes>
+          <AppRoutes />
+        </AuthProvider>
+      </ThemeProvider>
+    </Router>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  const hideNavbar = location.pathname === '/';
+
+  return (
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      {!hideNavbar && <Navbar />}
+      <main className="flex-1">
+        <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/*"
             element={
               <ProtectedRoute>
-                <div className="flex flex-col min-h-screen bg-gray-50">
-                  <Navbar />
-                  <main className="flex-1">
-                    <Routes>
-                      <Route path="/" element={<Dashboard />} />
-                      <Route path="/equipos" element={<Equipos />} />
-                      <Route path="/celulares" element={<Celulares />} />
-                      <Route path="/nomenclaturas" element={<Nomenclaturas />} />
-                      <Route path="/asignacion" element={<Asignacion />} />
-                      <Route path="/equipos-disponibles" element={<EquiposDisponibles />} />
-                      <Route path="/accesorios" element={<Accesorios />} />
-                      <Route path="/hoja-entrega" element={<HojaEntrega />} />
-                      <Route path="/descargo" element={<Descargo />} />
-                      <Route path="/admin-permisos" element={<AdminPermisos />} />
-                      <Route path="/bitacora" element={<Bitacora />} />
-                      <Route path="/icon-showcase" element={<IconShowcase />} />
-                      <Route path="/update-accesorios" element={<UpdateAcesoriosPage />} />
-                    </Routes>
-                  </main>
-                </div>
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/equipos" element={<Equipos />} />
+                  <Route path="/celulares" element={<Celulares />} />
+                  <Route path="/nomenclaturas" element={<Nomenclaturas />} />
+                  <Route path="/asignacion" element={<Asignacion />} />
+                  <Route path="/usuarios" element={<Usuarios />} />
+                  <Route path="/equipos-disponibles" element={<EquiposDisponibles />} />
+                  <Route path="/accesorios" element={<Accesorios />} />
+                  <Route path="/hoja-entrega" element={<HojaEntrega />} />
+                  <Route path="/descargo" element={<Descargo />} />
+                  <Route path="/admin-permisos" element={<AdminPermisos />} />
+                  <Route path="/bitacora" element={<Bitacora />} />
+                  <Route path="/icon-showcase" element={<IconShowcase />} />
+                  <Route path="/update-accesorios" element={<UpdateAcesoriosPage />} />
+                  <Route path="/reportes" element={<Reportes />} />
+                  <Route path="/mantenimiento" element={<Mantenimiento />} />
+                  <Route path="/configuracion" element={<Configuracion />} />
+                </Routes>
               </ProtectedRoute>
             }
           />
-          </Routes>
-        </AuthProvider>
-      </ThemeProvider>
-    </Router>
+        </Routes>
+      </main>
+    </div>
   );
 }
 

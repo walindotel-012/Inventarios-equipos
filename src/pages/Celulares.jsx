@@ -45,6 +45,7 @@ export default function Celulares() {
     numero: '',
     plan: '',
     fechaEntrega: '',
+    estado: 'disponible',
   });
 
   // Estados para los filtros
@@ -100,6 +101,7 @@ export default function Celulares() {
       numero: '',
       plan: '',
       fechaEntrega: '',
+      estado: 'disponible',
     });
     setEditingId(null);
     setShowForm(true);
@@ -107,7 +109,10 @@ export default function Celulares() {
 
   // Editar celular existente
   const handleEditar = (celular) => {
-    setFormData(celular);
+setFormData({
+        ...celular,
+        estado: celular.estado || 'disponible',
+      });
     setEditingId(celular.id);
     setShowForm(true);
   };
@@ -127,6 +132,7 @@ export default function Celulares() {
       numero: '',
       plan: '',
       fechaEntrega: '',
+      estado: 'disponible',
     });
   };
 
@@ -235,6 +241,7 @@ export default function Celulares() {
         numero: '',
         plan: '',
         fechaEntrega: '',
+        estado: 'disponible',
       });
 
       setEditingId(null);
@@ -643,6 +650,23 @@ export default function Celulares() {
                     {CONDICIONES.map(cond => (
                       <option key={cond} value={cond}>{cond}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
+                  <select
+                    name="estado"
+                    value={formData.estado}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  >
+                    <option value="disponible">Disponible</option>
+                    <option value="asignado">Asignado</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="equipos en mantenimiento">Equipos en mantenimiento</option>
+                    <option value="inactivos">Inactivos</option>
                   </select>
                 </div>
               </div>

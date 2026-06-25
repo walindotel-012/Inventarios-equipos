@@ -69,11 +69,13 @@ export default function Equipos() {
     licencia: '',
     tipoEquipo: '',
     condicion: '',
+    estado: 'disponible',
   });
 
   const discos = ['512 GB', '1 TB', '2 TB'];
   const memorias = ['16 GB', '32 GB', '64 GB', '8 GB'];
   const condiciones = ['Nuevo', 'Usado'];
+  const estadosInventario = ['disponible', 'asignado', 'mantenimiento', 'equipos en mantenimiento', 'inactivos'];
 
   // Generar el próximo código de activo fijo
   const generarProximoCodigo = (listaEquipos = equipos) => {
@@ -147,6 +149,7 @@ export default function Equipos() {
       licencia: '',
       tipoEquipo: '',
       condicion: '',
+      estado: 'disponible',
     });
     setEditingId(null);
     setShowForm(true);
@@ -154,7 +157,10 @@ export default function Equipos() {
 
   // Editar equipo existente
   const handleEditar = (equipo) => {
-    setFormData(equipo);
+    setFormData({
+      ...equipo,
+      estado: equipo.estado || 'disponible',
+    });
     setEditingId(equipo.id);
     setShowForm(true);
   };
@@ -175,6 +181,7 @@ export default function Equipos() {
       licencia: '',
       tipoEquipo: '',
       condicion: '',
+      estado: 'disponible',
     });
   };
 
@@ -359,6 +366,7 @@ export default function Equipos() {
           licencia: '',
           tipoEquipo: '',
           condicion: '',
+          estado: 'disponible',
         });
       }
 
@@ -860,6 +868,21 @@ export default function Equipos() {
                     <option value="">Seleccionar condición...</option>
                     {condiciones.map(cond => (
                       <option key={cond} value={cond}>{cond}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
+                  <select
+                    name="estado"
+                    value={formData.estado}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  >
+                    {estadosInventario.map((estado) => (
+                      <option key={estado} value={estado}>{estado.charAt(0).toUpperCase() + estado.slice(1)}</option>
                     ))}
                   </select>
                 </div>

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import {
   collection,
   getDocs,
+  getDoc,
+  setDoc,
   updateDoc,
   doc,
   deleteDoc,
@@ -33,6 +35,8 @@ export default function Descargo() {
   const [validatedAsignacion, setValidatedAsignacion] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreDescargo, setRestoreDescargo] = useState(null);
   const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
   const printRef = useRef();
   const reportPrintRef = useRef();
@@ -63,7 +67,7 @@ export default function Descargo() {
     const unsubscribeDescargos = onSnapshot(collection(db, 'descargos'), (snapshot) => {
       try {
         let descargosList = snapshot.docs.map(doc => ({
-          id: doc.id,
+          descargoDocId: doc.id,
           ...doc.data()
         }));
         
@@ -84,7 +88,7 @@ export default function Descargo() {
       unsubscribeAsignaciones();
       unsubscribeDescargos();
     };
-  }, [selectedAsignacion?.id]);
+  }, [selectedAsignacion]);
 
   // Efecto para mantener selectedAsignacion actualizada con los cambios en asignaciones
   useEffect(() => {
@@ -94,7 +98,7 @@ export default function Descargo() {
         setSelectedAsignacion(asignacionActualizada);
       }
     }
-  }, [asignaciones]);
+  }, [asignaciones, selectedAsignacion]);
 
   const filteredAsignaciones = asignaciones.filter(a =>
     (a.nombre || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -114,7 +118,7 @@ export default function Descargo() {
     try {
       setLoading(true);
 
-      const selectedAsignacion = asignacion || asignaciones.find(a => a.id === editingId);
+      const selectedAsignacion = asignacion;
       if (!selectedAsignacion) {
         showToast('No se encontró la asignación', 'error');
         return;
@@ -135,8 +139,12 @@ export default function Descargo() {
       // Preparar datos del descargo
       const descargoData = {
         ...selectedAsignacion,
+        asignacionId: selectedAsignacion.id,
         estado: 'descargado',
         fechaRegistroDescargo: new Date().toISOString(),
+        fechaDescargo: new Date().toISOString(),
+        usuarioDescargo: currentUser?.displayName || currentUser?.email || 'Desconocido',
+        descargadoPor: currentUser?.displayName || currentUser?.email || 'Desconocido',
       };
 
       // 1. GUARDAR en la colección "descargos"
@@ -208,12 +216,106 @@ export default function Descargo() {
     setShowDeleteConfirm(true);
   };
 
+  const handleRestaurar = (descargo) => {
+    setRestoreDescargo(descargo);
+    setShowRestoreConfirm(true);
+  };
+
+  const handleConfirmRestore = async () => {
+    if (!restoreDescargo) return;
+
+    try {
+      setLoading(true);
+
+      const originalAssignmentId = restoreDescargo.asignacionId || restoreDescargo.id;
+      if (!originalAssignmentId) {
+        throw new Error('No se encontró el ID de la asignación original en el registro de descargo');
+      }
+
+      const assignmentRef = doc(db, 'asignaciones', originalAssignmentId);
+      const assignmentSnapshot = await getDoc(assignmentRef);
+      if (assignmentSnapshot.exists()) {
+        showToast('La asignación ya existe en el sistema. No se puede restaurar nuevamente.', 'warning');
+        setShowRestoreConfirm(false);
+        setRestoreDescargo(null);
+        return;
+      }
+
+      const restoredAsignacion = { ...restoreDescargo };
+      delete restoredAsignacion.descargoDocId;
+      delete restoredAsignacion.fechaRegistroDescargo;
+      delete restoredAsignacion.usuarioDescargo;
+      delete restoredAsignacion.observacionesDescargo;
+      delete restoredAsignacion.estado;
+      delete restoredAsignacion.asignacionId;
+      restoredAsignacion.id = originalAssignmentId;
+      restoredAsignacion.asignado = true;
+      restoredAsignacion.estado = 'asignado';
+
+      await setDoc(assignmentRef, restoredAsignacion);
+
+      // Restaurar estado de equipo principal
+      if (restoredAsignacion.codActivoFijo && typeof restoredAsignacion.codActivoFijo === 'string' && restoredAsignacion.codActivoFijo.trim()) {
+        const equiposSnapshot = await getDocs(collection(db, 'equipos'));
+        const equipoToUpdate = equiposSnapshot.docs.find(
+          d => d.data().codActivoFijo === restoredAsignacion.codActivoFijo
+        );
+        if (equipoToUpdate) {
+          await updateDoc(doc(db, 'equipos', equipoToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      }
+
+      // Restaurar estado de equipo secundario
+      if (restoredAsignacion.codActivoFijoSecundario && typeof restoredAsignacion.codActivoFijoSecundario === 'string' && restoredAsignacion.codActivoFijoSecundario.trim()) {
+        const equiposSnapshot = await getDocs(collection(db, 'equipos'));
+        const equipoSecundarioToUpdate = equiposSnapshot.docs.find(
+          d => d.data().codActivoFijo === restoredAsignacion.codActivoFijoSecundario
+        );
+        if (equipoSecundarioToUpdate) {
+          await updateDoc(doc(db, 'equipos', equipoSecundarioToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      }
+
+      // Restaurar estado de celular
+      if (restoredAsignacion.serialCelular && typeof restoredAsignacion.serialCelular === 'string' && restoredAsignacion.serialCelular.trim()) {
+        const celularesSnapshot = await getDocs(collection(db, 'celulares'));
+        const celularToUpdate = celularesSnapshot.docs.find(
+          d => d.data().serial === restoredAsignacion.serialCelular
+        );
+        if (celularToUpdate) {
+          await updateDoc(doc(db, 'celulares', celularToUpdate.id), {
+            estado: 'asignado',
+            asignado: true,
+          });
+        }
+      }
+
+      // Eliminar el registro de descargo porque se restauró la asignación
+      const descargoRef = doc(db, 'descargos', restoreDescargo.descargoDocId);
+      await deleteDoc(descargoRef);
+
+      showToast('Asignación restaurada correctamente con toda la información original.', 'success');
+      setRestoreDescargo(null);
+      setShowRestoreConfirm(false);
+    } catch (error) {
+      console.error('Error al restaurar asignación:', error);
+      showToast('Error al restaurar la asignación: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!deleteId) return;
     try {
       await deleteDoc(doc(db, 'descargos', deleteId));
       showToast('Registro eliminado correctamente', 'success');
-      loadData();
     } catch (error) {
       console.error('Error eliminando registro:', error);
       showToast('Error al eliminar registro', 'error');
@@ -232,9 +334,9 @@ export default function Descargo() {
       setLoading(true);
       console.log('🔍 Iniciando limpieza de historial...', descargos.length, 'registros');
       
-      // Deduplicar registros
+      // Deduplicar registros por ID de documento de descargo
       const uniqueDescargos = descargos.filter((d, index, arr) => 
-        arr.findIndex(item => item.id === d.id) === index
+        arr.findIndex(item => item.descargoDocId === d.descargoDocId) === index
       );
       
       console.log('📋 Registros únicos encontrados:', uniqueDescargos.length);
@@ -249,9 +351,9 @@ export default function Descargo() {
       const batch = writeBatch(db);
       
       for (const descargo of uniqueDescargos) {
-        const docRef = doc(db, 'descargos', descargo.id);
+        const docRef = doc(db, 'descargos', descargo.descargoDocId || descargo.id);
         batch.delete(docRef);
-        console.log(`⏳ Añadiendo a batch para eliminar: ${descargo.id}`);
+        console.log(`⏳ Añadiendo a batch para eliminar: ${descargo.descargoDocId || descargo.id}`);
       }
       
       console.log('📤 Commitiendo batch...');
@@ -277,13 +379,13 @@ export default function Descargo() {
       console.log('🔄 Recargando datos desde Firebase...');
       const descargosSnapshot = await getDocs(collection(db, 'descargos'));
       const descargosList = descargosSnapshot.docs.map(doc => ({
-        id: doc.id,
+        descargoDocId: doc.id,
         ...doc.data()
       }));
       
       // Deduplicar por si acaso
       const deduplicatedList = descargosList.filter((d, index, arr) => 
-        arr.findIndex(item => item.id === d.id) === index
+        arr.findIndex(item => item.descargoDocId === d.descargoDocId) === index
       );
       
       console.log('📦 Datos recargados:', deduplicatedList.length, 'registros restantes');
@@ -478,7 +580,6 @@ export default function Descargo() {
         timeout: 30000,
         imageTimeout: 30000,
         removeContainer: false,
-        useCORS: true,
         ignoreElements: (element) => {
           // Ignorar elementos que no queremos en la captura
           if (element.classList && element.classList.contains('no-print')) {
@@ -660,7 +761,9 @@ export default function Descargo() {
         setTimeout(() => {
           try {
             document.body.removeChild(iframe);
-          } catch (e) {}
+          } catch (error) {
+            console.warn('Error removing print iframe:', error);
+          }
         }, 500);
       }, 300);
     };
@@ -1142,7 +1245,7 @@ export default function Descargo() {
                       </tr>
                     ) : (
                       filteredDescargos.map((descargo, idx) => (
-                        <tr key={`${descargo.id}-${idx}`} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
+                        <tr key={descargo.descargoDocId || `${descargo.id}-${idx}`} className="border-b border-gray-300 hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 text-sm text-gray-900 font-medium">{descargo.nombre}</td>
                           <td className="px-4 py-3 text-sm text-gray-700 flex items-center gap-2">
                             {descargo.codActivoFijo ? (
@@ -1168,13 +1271,24 @@ export default function Descargo() {
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">{descargo.fechaAsignacion}</td>
                           <td className="px-4 py-3 text-sm font-semibold text-green-600">
-                            {descargo.fechaDescargo}
+                            {descargo.fechaDescargo
+                              ? new Date(descargo.fechaDescargo).toLocaleDateString('es-ES')
+                              : descargo.fechaRegistroDescargo
+                                ? new Date(descargo.fechaRegistroDescargo).toLocaleDateString('es-ES')
+                                : 'N/A'}
                           </td>
                           <td className="px-4 py-3 text-sm text-gray-700">{descargo.asignadoPor}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{descargo.usuarioDescargo}</td>
-                          <td className="px-4 py-3 text-sm">
+                          <td className="px-4 py-3 text-sm text-gray-700">{descargo.usuarioDescargo || descargo.descargadoPor || 'N/A'}</td>
+                          <td className="px-4 py-3 text-sm flex gap-2">
                             <button
-                              onClick={() => handleDelete(descargo.id)}
+                              onClick={() => handleRestaurar(descargo)}
+                              className="text-green-600 hover:text-green-800 font-semibold flex items-center gap-1"
+                            >
+                              <Icon name="RefreshOutline" size="sm" color="#16a34a" />
+                              Restaurar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(descargo.descargoDocId)}
                               className="text-red-600 hover:text-red-800 font-semibold flex items-center gap-1"
                             >
                               <Icon name="TrashOutline" size="sm" color="#ef4444" />
@@ -1271,6 +1385,20 @@ export default function Descargo() {
           cancelText="Cancelar"
           onConfirm={handleConfirmDelete}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+
+      {showRestoreConfirm && (
+        <ConfirmDialog
+          title="Restaurar Asignación"
+          message="¿Deseas restaurar esta asignación desde el historial de descargos? Esto devolverá el equipo al estado asignado con la información original."
+          confirmText="Restaurar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmRestore}
+          onCancel={() => {
+            setShowRestoreConfirm(false);
+            setRestoreDescargo(null);
+          }}
         />
       )}
 
@@ -1866,7 +1994,7 @@ function DescargoPDFTemplate({ asignacion, userPermissions, currentUser }) {
 }
 
 // Componente para el template del Reporte PDF
-function ReportePDFTemplate({ descargos }) {
+function ReportePDFTemplate() {
   const currentDate = new Date().toLocaleDateString('es-ES');
 
   return (

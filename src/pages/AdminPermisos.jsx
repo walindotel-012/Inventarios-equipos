@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { logAudit } from '../utils/auditLog';
 import Icon from '../components/Icon';
 import Toast from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -126,6 +127,15 @@ export default function AdminPermisos() {
         actualizadoPor: currentUser.uid
       });
 
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'UPDATE',
+        'Admin de Permisos',
+        userId,
+        { permisos: userPerms }
+      );
+
       // Actualizar la lista de usuarios con los nuevos datos
       setUsuarios(prev => prev.map(u => 
         u.id === userId 
@@ -174,6 +184,14 @@ export default function AdminPermisos() {
       
       // Actualizar documento de permisos con estado revocado
       await updateDoc(doc(db, 'permisos', deleteUserId), permisoRevocado);
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'UPDATE',
+        'Admin de Permisos',
+        deleteUserId,
+        { permisoRevocado }
+      );
       
       // Actualizar estado de permisos local
       setPermisos(prev => ({
@@ -218,6 +236,14 @@ export default function AdminPermisos() {
       };
 
       await setDoc(doc(db, 'permisos', userId), newUserData);
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'CREATE',
+        'Admin de Permisos',
+        userId,
+        { email: newUserData.email, nombre: newUserData.nombre, departamento: newUserData.departamento }
+      );
       
       // Actualizar estado local
       setPermisos(prev => ({

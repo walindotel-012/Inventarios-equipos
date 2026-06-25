@@ -15,6 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import Toast from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Icon from '../components/Icon';
+import OperationsMenu from '../components/OperationsMenu';
 import { useToastManager } from '../hooks/useToastManager';
 import { logAudit } from '../utils/auditLog';
 import * as XLSX from 'xlsx';
@@ -40,6 +41,7 @@ export default function Asignacion() {
   const [searchCelular, setSearchCelular] = useState('');
   const [searchEquipo, setSearchEquipo] = useState('');
   const [searchModelo, setSearchModelo] = useState('');
+  const [showFilters, setShowFilters] = useState(true);
   const [showImportForm, setShowImportForm] = useState(false);
   const [importText, setImportText] = useState('');
   const [showEquipoDropdown, setShowEquipoDropdown] = useState(false);
@@ -48,6 +50,7 @@ export default function Asignacion() {
   const [showAccesorioDropdown, setShowAccesorioDropdown] = useState(false);
   const [searchAccesorio, setSearchAccesorio] = useState('');
   const [searchEquipoPrincipal, setSearchEquipoPrincipal] = useState('');
+
   const [searchEquipoSec, setSearchEquipoSec] = useState('');
   const [searchCelularField, setSearchCelularField] = useState('');
 
@@ -1585,51 +1588,30 @@ export default function Asignacion() {
             <p className="text-gray-600 text-base">Registra y administra asignaciones de equipos a colaboradores</p>
           </div>
           {!showForm && !showImportForm && (
-            <div className="flex gap-3 flex-wrap">
-              <button
-                onClick={() => setShowImportForm(true)}
-                className="btn-secondary flex items-center justify-center gap-2"
-              >
-                <span className="text-base">📥</span>
-                Importar en Lote
-              </button>
-              <button
-                onClick={handleExportEquipoPrimario}
-                className="btn-secondary flex items-center justify-center gap-2"
-              >
-                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
-                Export Equipo Principal
-              </button>
-              <button
-                onClick={handleExportEquipoSecundario}
-                className="btn-secondary flex items-center justify-center gap-2"
-              >
-                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
-                Export Equipo Secundario
-              </button>
-              <button
-                onClick={handleExportCelular}
-                className="btn-secondary flex items-center justify-center gap-2"
-              >
-                <Icon name="BarChartOutline" size="sm" color="#6b7280" />
-                Export Celulares
-              </button>
-              <button
-                onClick={handleMigrarObservaciones}
-                className="btn-secondary gap-2 text-sm hidden"
-                title="Migra el campo observaciones a todas las asignaciones antiguas"
-              >
-                <span className="text-base">🔄</span>
-                Migrar Observaciones
-              </button>
-           
-              <button
-                onClick={handleNueva}
-                className="btn-primary flex items-center justify-center gap-2"
-              >
-                <Icon name="AddOutline" size="sm" color="white" />
-                Nueva Asignación
-              </button>
+            <div className="flex flex-col gap-4 lg:items-end lg:flex-row lg:justify-end lg:gap-6 w-full">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowFilters((prev) => !prev)}
+                  className="btn-secondary flex items-center gap-2 whitespace-nowrap"
+                >
+                  <Icon name="FilterOutline" size="sm" color="#6b7280" />
+                  Filtros
+                </button>
+                <OperationsMenu
+                  onImportBatch={() => setShowImportForm(true)}
+                  onExportEquipoPrimario={handleExportEquipoPrimario}
+                  onExportEquipoSecundario={handleExportEquipoSecundario}
+                  onExportCelular={handleExportCelular}
+                />
+                <button
+                  onClick={handleNueva}
+                  className="btn-primary flex items-center justify-center gap-2 whitespace-nowrap"
+                >
+                  <Icon name="AddOutline" size="sm" color="white" />
+                  Nueva Asignación
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -2422,17 +2404,18 @@ export default function Asignacion() {
 
             {asignaciones.length > 0 && (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 pt-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Serial</label>
-                    <input
-                      type="text"
-                      placeholder="Ej: D6TK374"
-                      value={searchSerial}
-                      onChange={(e) => setSearchSerial(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    />
-                  </div>
+                {showFilters && (
+                  <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 pt-6">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Serial</label>
+                      <input
+                        type="text"
+                        placeholder="Ej: D6TK374"
+                        value={searchSerial}
+                        onChange={(e) => setSearchSerial(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Filtrar por Nombre</label>
                     <input
@@ -2500,6 +2483,7 @@ export default function Asignacion() {
                     </select>
                   </div>
                 </div>
+                )}
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

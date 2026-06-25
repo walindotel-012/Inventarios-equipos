@@ -41,6 +41,7 @@ export default function Navbar() {
     { path: '/accesorios', label: 'Accesorios', icon: 'BuildOutline', moduloId: 'accesorios' },
     { path: '/nomenclaturas', label: 'Nomenclaturas', icon: 'PersonOutline', moduloId: 'nomenclaturas' },
     { path: '/asignacion', label: 'Asignaciones', icon: 'LinkOutline', moduloId: 'asignacion' },
+    { path: '/usuarios', label: 'Usuarios', icon: 'PersonCircleOutline', moduloId: 'usuarios' },
     { path: '/hoja-entrega', label: 'Entregas', icon: 'DocumentOutline', moduloId: 'hoja-entrega' },
     { path: '/descargo', label: 'Descargos', icon: 'ArrowRedoOutline', moduloId: 'descargo' },
     { path: '/bitacora', label: 'Bitácora', icon: 'DocumentTextOutline', moduloId: 'bitacora', adminOnly: true },

@@ -42,7 +42,7 @@
       "name": "Gestión de Asignaciones",
       "short_name": "Asignaciones",
       "description": "Acceder directamente a la gestión de asignaciones",
-      "url": "/Inventarios-equipos/#/asignacion",
+      "url": "/#/asignacion",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='48' r='44' fill='%23003399'/><text x='48' y='56' font-size='32' text-anchor='middle' fill='white' font-family='Arial'>A</text></svg>",
@@ -55,7 +55,7 @@
       "name": "Descargos de Equipos",
       "short_name": "Descargos",
       "description": "Acceder a la gestión de descargos",
-      "url": "/Inventarios-equipos/#/descargo",
+      "url": "/#/descargo",
       "icons": [
         {
           "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><circle cx='48' cy='48' r='44' fill='%2310b981'/><text x='48' y='56' font-size='32' text-anchor='middle' fill='white' font-family='Arial'>D</text></svg>",
