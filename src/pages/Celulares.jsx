@@ -1,0 +1,1260 @@
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { collection, addDoc, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
+import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Icon from '../components/Icon';
+import SearchView from '../components/SearchView';
+import { useToastManager } from '../hooks/useToastManager';
+import { logAudit } from '../utils/auditLog';
+import * as XLSX from 'xlsx';
+import { downloadImportTemplate, readImportExcelFile, validateImportText } from '../utils/importTemplates';
+
+const MARCAS_CELULARES_INICIALES = ['Apple', 'Samsung', 'motorola', 'LG', 'Huawei', 'Xiaomi', 'Nokia', 'OnePlus', 'Google Pixel', 'Otro'];
+const CONDICIONES = ['Nuevo', 'Usado', 'Personal-ESIM'];
+const RESTRICCIONES_INICIALES = ['Abierta', 'Cerrada', 'Abierta LDI'];
+const PLANES_INICIALES = ['10 GB Plus con bloqueo'];
+const TIPOS_EQUIPO = ['FLOTA', 'ESIM'];
+
+export default function Celulares() {
+  const { currentUser } = useAuth();
+  const { toast, showToast, hideToast } = useToastManager();
+  const [searchParams] = useSearchParams();
+  const [celulares, setCelulares] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showForm, setShowForm] = useState(searchParams.get('form') === 'true');
+  const [editingId, setEditingId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [showImportForm, setShowImportForm] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [marcas, setMarcas] = useState(MARCAS_CELULARES_INICIALES);
+  const [restricciones, setRestricciones] = useState(RESTRICCIONES_INICIALES);
+  const [planes, setPlanes] = useState(PLANES_INICIALES);
+  const [showMarcasDropdown, setShowMarcasDropdown] = useState(false);
+  const [showRestriccionesDropdown, setShowRestriccionesDropdown] = useState(false);
+  const [showPlanesDropdown, setShowPlanesDropdown] = useState(false);
+  const [formData, setFormData] = useState({
+    tipoEquipo: '',
+    condicion: '',
+    restriccion: '',
+    serial: '',
+    marca: '',
+    modelo: '',
+    imei: '',
+    numero: '',
+    plan: '',
+    fechaEntrega: '',
+    estado: 'disponible',
+  });
+
+  // Estados para los filtros
+  const [filtros, setFiltros] = useState({
+    condicion: '',
+    restriccion: '',
+    serial: '',
+    marca: '',
+    modelo: '',
+    imei: '',
+    numero: '',
+  });
+
+  // Cargar celulares
+  useEffect(() => {
+    loadCelulares();
+  }, []);
+
+  // Abrir formulario si viene parámetro form=true desde el Dashboard
+  useEffect(() => {
+    if (searchParams.get('form') === 'true') {
+      handleNuevoCelular();
+    }
+  }, [searchParams]);
+
+  const loadCelulares = async () => {
+    try {
+      setLoading(true);
+      const querySnapshot = await getDocs(collection(db, 'celulares'));
+      const celularesList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setCelulares(celularesList);
+    } catch (error) {
+      console.error('Error cargando celulares:', error);
+      showToast('Error al cargar celulares', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Mostrar formulario para nuevo celular
+  const handleNuevoCelular = () => {
+    setFormData({
+      tipoEquipo: '',
+      condicion: '',
+      restriccion: '',
+      serial: '',
+      marca: '',
+      modelo: '',
+      imei: '',
+      numero: '',
+      plan: '',
+      fechaEntrega: '',
+      estado: 'disponible',
+    });
+    setEditingId(null);
+    setShowForm(true);
+  };
+
+  // Editar celular existente
+  const handleEditar = (celular) => {
+setFormData({
+        ...celular,
+        estado: celular.estado || 'disponible',
+      });
+    setEditingId(celular.id);
+    setShowForm(true);
+  };
+
+  // Cerrar formulario
+  const handleCancelar = () => {
+    setShowForm(false);
+    setEditingId(null);
+    setFormData({
+      tipoEquipo: '',
+      condicion: '',
+      restriccion: '',
+      serial: '',
+      marca: '',
+      modelo: '',
+      imei: '',
+      numero: '',
+      plan: '',
+      fechaEntrega: '',
+      estado: 'disponible',
+    });
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validar que todos los campos obligatorios estén llenos
+    if (!formData.tipoEquipo || !formData.condicion || !formData.serial || !formData.marca || !formData.modelo || 
+        !formData.imei || !formData.numero || !formData.plan || !formData.fechaEntrega) {
+      showToast('Por favor completa todos los campos', 'warning');
+      return;
+    }
+
+    // Validar que el serial no esté duplicado (excepto si es el mismo celular en edición)
+    const serialDuplicado = celulares.some(celular => 
+      celular.serial && celular.serial.toUpperCase() === formData.serial.toUpperCase() && celular.id !== editingId
+    );
+
+    if (serialDuplicado) {
+      showToast(`No se puede guardar. El serial "${formData.serial}" ya está registrado`, 'error');
+      return;
+    }
+
+    // Validar que el IMEI no esté duplicado (excepto si es el mismo celular en edición)
+    const imeiDuplicado = celulares.some(celular => 
+      celular.imei && celular.imei.toUpperCase() === formData.imei.toUpperCase() && celular.id !== editingId
+    );
+
+    if (imeiDuplicado) {
+      showToast(`No se puede guardar. El IMEI "${formData.imei}" ya está registrado`, 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      if (editingId) {
+        // Obtener datos anteriores para comparar
+        const celularAnterior = celulares.find(c => c.id === editingId);
+        
+        // Actualizar celular existente
+        await updateDoc(doc(db, 'celulares', editingId), {
+          ...formData,
+          actualizadoPor: currentUser.displayName || currentUser.email,
+          fechaActualizacion: new Date(),
+        });
+        
+        // Registrar en auditoría
+        await logAudit(
+          currentUser.uid,
+          currentUser.displayName || currentUser.email,
+          'UPDATE',
+          'Celulares',
+          editingId,
+          {
+            anterior: celularAnterior,
+            nuevo: formData,
+          }
+        );
+        
+        showToast('Celular actualizado exitosamente', 'success');
+      } else {
+        // Crear nuevo celular
+        const docRef = await addDoc(collection(db, 'celulares'), {
+          ...formData,
+          registradoPor: currentUser.displayName || currentUser.email,
+          fechaRegistro: new Date(),
+        });
+        
+        // Registrar en auditoría
+        await logAudit(
+          currentUser.uid,
+          currentUser.displayName || currentUser.email,
+          'CREATE',
+          'Celulares',
+          docRef.id,
+          {
+            tipoEquipo: formData.tipoEquipo,
+            marca: formData.marca,
+            modelo: formData.modelo,
+            serial: formData.serial,
+            numero: formData.numero,
+          }
+        );
+        
+        showToast('Celular registrado exitosamente', 'success');
+      }
+
+      // Limpiar formulario
+      setFormData({
+        tipoEquipo: '',
+        condicion: '',
+        restriccion: '',
+        serial: '',
+        marca: '',
+        modelo: '',
+        imei: '',
+        numero: '',
+        plan: '',
+        fechaEntrega: '',
+        estado: 'disponible',
+      });
+
+      setEditingId(null);
+      loadCelulares();
+    } catch (error) {
+      console.error('Error al guardar celular:', error);
+      showToast('Error al registrar celular', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (id) => {
+    setDeleteId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    try {
+      setLoading(true);
+      const celularAEliminar = celulares.find(c => c.id === deleteId);
+      
+      await deleteDoc(doc(db, 'celulares', deleteId));
+      
+      // Registrar en auditoría
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'DELETE',
+        'Celulares',
+        deleteId,
+        {
+          marca: celularAEliminar?.marca,
+          modelo: celularAEliminar?.modelo,
+          serial: celularAEliminar?.serial,
+          numero: celularAEliminar?.numero,
+        }
+      );
+      
+      showToast('Celular eliminado', 'success');
+      loadCelulares();
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+      showToast('Error al eliminar celular', 'error');
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirm(false);
+      setDeleteId(null);
+      setSelectedId(null);
+    }
+  };
+
+  // Manejador de cambios en filtros
+  const handleFiltroChange = (e) => {
+    const { name, value } = e.target;
+    setFiltros(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Limpiar filtros
+  const handleLimpiarFiltros = () => {
+    setFiltros({
+      condicion: '',
+      restriccion: '',
+      serial: '',
+      marca: '',
+      modelo: '',
+      imei: '',
+      numero: '',
+    });
+  };
+
+  // Importar celulares en lote
+  const handleImportCelulares = async (e) => {
+    e.preventDefault();
+
+    if (!importText.trim()) {
+      showToast('Por favor pega los celulares a importar', 'warning');
+      return;
+    }
+
+    // Parsear los celulares del texto (tab-separated)
+    const lineas = importText
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+
+    if (lineas.length === 0) {
+      showToast('No hay celulares válidos para importar', 'warning');
+      return;
+    }
+
+    const validationErrors = validateImportText(importText, {
+      headers: ['Tipo de equipo', 'Condicion', 'Restriccion', 'Serial', 'Marca', 'Modelo', 'IMEI', 'Numero', 'Plan', 'Fecha Entrega'],
+      minColumns: 10,
+      maxColumns: 10,
+      required: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+      allowed: { 0: TIPOS_EQUIPO, 1: CONDICIONES, 2: RESTRICCIONES_INICIALES },
+      uniqueGroups: [[3], [6]],
+      existing: {
+        '3': new Set(celulares.map(celular => celular.serial?.toUpperCase())),
+        '6': new Set(celulares.map(celular => celular.imei?.toUpperCase())),
+      },
+    });
+    if (validationErrors.length > 0) {
+      showToast(`No se importó nada. ${validationErrors.slice(0, 3).join(' ')}`, 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let importados = 0;
+      let errores = 0;
+      let seriesDuplicadas = 0;
+      let imeiDuplicados = 0;
+      const seriesYaImportadas = new Set();
+      const imeisYaImportados = new Set();
+
+      for (const linea of lineas) {
+        try {
+          // Parsear los campos separados por TAB
+          // Orden: Tipo de equipo | Condición | Restricción | Serial | Marca | Modelo | IMEI | Número | Plan | Fecha Entrega
+          const campos = linea.split('\t').map(c => c.trim());
+          
+          // Validar que haya 10 campos requeridos
+          if (campos.length < 10) {
+            console.warn(`Línea skipped (campos insuficientes): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          const [tipoEquipo, condicion, restriccion, serial, marca, modelo, imei, numero, plan, fechaEntrega] = campos;
+
+          // Validar campos requeridos
+          if (!tipoEquipo || !condicion || !serial || !marca || !modelo || !imei || !numero || !plan || !fechaEntrega) {
+            console.warn(`Línea skipped (campos vacíos): ${linea.substring(0, 50)}...`);
+            errores++;
+            continue;
+          }
+
+          // Convertir serial e IMEI a mayúsculas
+          const serialMayuscula = serial.toUpperCase();
+          const imeiMayuscula = imei.toUpperCase();
+
+          // Validar que el serial no esté duplicado
+          if (celulares.some(c => c.serial.toUpperCase() === serialMayuscula) || seriesYaImportadas.has(serialMayuscula)) {
+            console.warn(`Serial duplicado: ${serial}`);
+            seriesDuplicadas++;
+            continue;
+          }
+
+          // Validar que el IMEI no esté duplicado
+          if (celulares.some(c => c.imei.toUpperCase() === imeiMayuscula) || imeisYaImportados.has(imeiMayuscula)) {
+            console.warn(`IMEI duplicado: ${imei}`);
+            imeiDuplicados++;
+            continue;
+          }
+
+          seriesYaImportadas.add(serialMayuscula);
+          imeisYaImportados.add(imeiMayuscula);
+
+          // Insertar en Firestore
+          await addDoc(collection(db, 'celulares'), {
+            tipoEquipo: tipoEquipo.trim(),
+            condicion: condicion.trim(),
+            restriccion: restriccion.trim(),
+            serial: serialMayuscula,
+            marca: marca.trim(),
+            modelo: modelo.trim(),
+            imei: imeiMayuscula,
+            numero: numero.trim(),
+            plan: plan.trim(),
+            fechaEntrega: fechaEntrega.trim(),
+            registradoPor: currentUser.displayName || currentUser.email,
+            fechaRegistro: new Date(),
+          });
+
+          importados++;
+        } catch (lineError) {
+          console.error('Error procesando línea:', lineError);
+          errores++;
+        }
+      }
+
+      let mensaje = `Se importaron ${importados} celular${importados !== 1 ? 'es' : ''}`;
+      if (seriesDuplicadas > 0) {
+        mensaje += ` (${seriesDuplicadas} serial${seriesDuplicadas !== 1 ? 'es' : ''} duplicado${seriesDuplicadas !== 1 ? 's' : ''} ignorado${seriesDuplicadas !== 1 ? 's' : ''})`;
+      }
+      if (imeiDuplicados > 0) {
+        mensaje += ` (${imeiDuplicados} IMEI duplicado${imeiDuplicados !== 1 ? 's' : ''} ignorado${imeiDuplicados !== 1 ? 's' : ''})`;
+      }
+      if (errores > 0) {
+        mensaje += ` (${errores} línea${errores !== 1 ? 's' : ''} con error)`;
+      }
+      showToast(mensaje, importados > 0 ? 'success' : 'warning');
+
+      setImportText('');
+      setShowImportForm(false);
+      loadCelulares();
+    } catch (error) {
+      console.error('Error al importar:', error);
+      showToast('Error al importar celulares', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadImportTemplate = () => {
+    downloadImportTemplate(
+      'Plantilla_Importacion_Celulares.xlsx',
+      'Celulares',
+      ['Tipo de equipo', 'Condicion', 'Restriccion', 'Serial', 'Marca', 'Modelo', 'IMEI', 'Numero', 'Plan', 'Fecha Entrega'],
+      ['FLOTA', 'Nuevo', 'Abierta', 'SERIAL-EJEMPLO', 'Apple', 'iPhone 14 Pro', '359620098765432', '+57 3001234567', '10 GB Plus con bloqueo', '2026-01-15'],
+      ['Completa una fila por celular y conserva el orden de las columnas.', 'Todos los campos son obligatorios.', 'Elimina la fila de ejemplo antes de copiar los datos al formulario.', 'Copia solo las filas de datos desde Excel y pegalas en el formulario.']
+    );
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    try {
+      const text = await readImportExcelFile(file, ['Tipo de equipo', 'Condicion', 'Restriccion', 'Serial', 'Marca', 'Modelo', 'IMEI', 'Numero', 'Plan', 'Fecha Entrega']);
+      setImportText(text);
+      showToast('Archivo cargado. Revisa los datos y presiona Importar.', 'success');
+    } catch (error) {
+      showToast(error.message, 'error');
+    }
+  };
+
+  // Filtrar celulares basado en los filtros activos
+  const celularesFiltrados = celulares.filter(celular => {
+    if (filtros.condicion && celular.condicion !== filtros.condicion) return false;
+    if (filtros.restriccion && celular.restriccion !== filtros.restriccion) return false;
+    if (filtros.serial && !celular.serial.toLowerCase().includes(filtros.serial.toLowerCase())) return false;
+    if (filtros.marca && celular.marca !== filtros.marca) return false;
+    if (filtros.modelo && !celular.modelo.toLowerCase().includes(filtros.modelo.toLowerCase())) return false;
+    if (filtros.imei && !celular.imei.toLowerCase().includes(filtros.imei.toLowerCase())) return false;
+    if (filtros.numero && !celular.numero.toLowerCase().includes(filtros.numero.toLowerCase())) return false;
+    return true;
+  });
+
+  // Obtener opciones únicas para los filtros
+  const getCondicionesUnicas = () => [...new Set(celulares.map(c => c.condicion).filter(Boolean))];
+  const getRestriccionesUnicas = () => [...new Set(celulares.map(c => c.restriccion).filter(Boolean))];
+  const getMarcasUnicas = () => [...new Set(celulares.map(c => c.marca).filter(Boolean))];
+
+  // Exportar a Excel
+  const handleExportarExcel = () => {
+    if (celularesFiltrados.length === 0) {
+      showToast('No hay celulares para exportar', 'warning');
+      return;
+    }
+
+    const dataExport = celularesFiltrados.map(celular => ({
+      'Tipo Equipo': celular.tipoEquipo || '',
+      'Condición': celular.condicion || '',
+      'Restricción': celular.restriccion || '',
+      'Serial': celular.serial || '',
+      'Marca': celular.marca || '',
+      'Modelo': celular.modelo || '',
+      'IMEI': celular.imei || '',
+      'Número': celular.numero || '',
+      'Plan': celular.plan || '',
+      'Fecha Entrega': celular.fechaEntrega || '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dataExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Celulares');
+
+    const columnWidths = [
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 12 },
+      { wch: 15 },
+      { wch: 18 },
+      { wch: 15 },
+      { wch: 25 },
+      { wch: 15 }
+    ];
+    ws['!cols'] = columnWidths;
+
+    XLSX.writeFile(wb, `Celulares_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('Reporte exportado exitosamente', 'success');
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="pt-8 pb-8 px-4 sm:px-6 lg:px-8 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 font-manrope mb-2">Gestión de Celulares</h1>
+            <p className="text-gray-600 text-base">Registra y administra todos los dispositivos móviles</p>
+          </div>
+          {!showForm && !showImportForm && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowImportForm(true)}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Icon name="CloudUploadOutline" size="sm" color="#6b7280" />
+                Importar Lote
+              </button>
+              <button
+                onClick={handleNuevoCelular}
+                className="btn-primary flex items-center justify-center gap-2"
+              >
+                <Icon name="AddOutline" size="sm" color="white" />
+                Nuevo Celular
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {showImportForm ? (
+          // Vista con formulario de importación
+          <div className="card-saas-lg bg-white max-w-4xl mx-auto border border-gray-200 shadow-sm">
+            <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-green-400 to-green-500 rounded-xl flex items-center justify-center text-lg">📥</div>
+              Importar Celulares en Lote
+            </h2>
+
+            <form onSubmit={handleImportCelulares} className="space-y-6">
+              <button
+                type="button"
+                onClick={handleDownloadImportTemplate}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Icon name="DownloadOutline" size="sm" color="#6b7280" />
+                Descargar plantilla Excel
+              </button>
+              <label className="btn-secondary flex cursor-pointer items-center justify-center gap-2">
+                <Icon name="CloudUploadOutline" size="sm" color="#6b7280" />
+                Cargar archivo Excel
+                <input type="file" accept=".xlsx,.xls" onChange={handleImportFile} className="hidden" />
+              </label>
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-2">
+                <Icon name="InformationCircleOutline" size="sm" color="#0284c7" />
+                <div>
+                  <p className="text-blue-900 text-sm font-semibold">Formato esperado (separado por TAB)</p>
+                  <p className="text-blue-800 text-xs mt-2 font-mono">
+                    Tipo de equipo | Condición | Restricción | Serial | Marca | Modelo | IMEI | Número | Plan | Fecha Entrega
+                  </p>
+                  <p className="text-blue-800 text-xs mt-2">
+                    Ejemplo: FLOTA | Nuevo | Abierta | SN123456 | Apple | iPhone 14 Pro | 359620098765432 | +57 3001234567 | 10 GB Plus con bloqueo | 2024-01-15
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Celulares (uno por línea, separados por TAB)
+                </label>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  placeholder="Pega los celulares aquí&#10;Usa el formato: Tipo	Condición	Restricción	Serial	Marca	Modelo	IMEI	Número	Plan	Fecha Entrega"
+                  rows="12"
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all font-mono"
+                  required
+                />
+                <div className="mt-3 flex justify-between items-center">
+                  <span className="text-xs text-gray-600">
+                    Se importarán: {importText.split('\n').filter(l => l.trim().length > 0).length} celular(es)
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-2">
+                <Icon name="AlertCircleOutline" size="sm" color="#d97706" />
+                <div>
+                  <p className="text-amber-900 text-sm font-semibold">Información importante</p>
+                  <ul className="text-amber-800 text-xs mt-1 space-y-1">
+                    <li>• Los seriales duplicados serán ignorados</li>
+                    <li>• Los IMEI duplicados serán ignorados</li>
+                    <li>• Se convertirán seriales e IMEI a mayúsculas</li>
+                    <li>• Todos los campos son requeridos</li>
+                    <li>• Tipo de equipo debe ser: FLOTA o ESIM</li>
+                    <li>• Condición debe ser: Nuevo, Usado o Personal-ESIM</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="submit"
+                  disabled={loading || importText.trim().length === 0}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Importando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      Importar
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowImportForm(false)}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : showForm ? (
+          // Vista con formulario expandido
+          <div className="card-saas-lg bg-white max-w-3xl mx-auto border border-gray-200 shadow-sm">
+            <h2 className="text-2xl font-bold text-gray-900 font-manrope mb-6 flex items-center gap-3">
+              <Icon name="PhonePortraitOutline" size="lg" color="#16a34a" />
+              {editingId ? 'Editar Celular' : 'Nuevo Celular'}
+            </h2>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Fila 1 - Tipo Equipo y Condición */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Equipo</label>
+                  <select
+                    name="tipoEquipo"
+                    value={formData.tipoEquipo}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Seleccionar tipo...</option>
+                    {TIPOS_EQUIPO.map(tipo => (
+                      <option key={tipo} value={tipo}>{tipo}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Condición</label>
+                  <select
+                    name="condicion"
+                    value={formData.condicion}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Seleccionar condición...</option>
+                    {CONDICIONES.map(cond => (
+                      <option key={cond} value={cond}>{cond}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
+                  <select
+                    name="estado"
+                    value={formData.estado}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  >
+                    <option value="disponible">Disponible</option>
+                    <option value="asignado">Asignado</option>
+                    <option value="mantenimiento">Mantenimiento</option>
+                    <option value="equipos en mantenimiento">Equipos en mantenimiento</option>
+                    <option value="inactivos">Inactivos</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Fila 2 - Restricción y Serial */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Restricción</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="restriccion"
+                      value={formData.restriccion}
+                      onChange={handleChange}
+                      onFocus={() => setShowRestriccionesDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowRestriccionesDropdown(false), 200)}
+                      placeholder="Escribir o seleccionar..."
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    />
+                    
+                    {showRestriccionesDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        {restricciones
+                          .filter(r => r.toLowerCase().includes(formData.restriccion.toLowerCase()))
+                          .map(r => (
+                            <div
+                              key={r}
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, restriccion: r }));
+                                  setShowRestriccionesDropdown(false);
+                                }}
+                                className="flex-1 text-left"
+                              >
+                                {r}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRestricciones(prev => prev.filter(x => x !== r));
+                                  if (formData.restriccion === r) {
+                                    setFormData(prev => ({ ...prev, restriccion: '' }));
+                                  }
+                                }}
+                                className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded text-red-600 transition-all"
+                                title="Eliminar"
+                              >
+                                <Icon name="TrashOutline" size="sm" color="#dc2626" />
+                              </button>
+                            </div>
+                          ))}
+                        
+                        {formData.restriccion && !restricciones.map(r => r.toLowerCase()).includes(formData.restriccion.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nueva = formData.restriccion.charAt(0).toUpperCase() + formData.restriccion.slice(1);
+                              setRestricciones(prev => [...new Set([...prev, nueva])]);
+                              setFormData(prev => ({ ...prev, restriccion: nueva }));
+                              setShowRestriccionesDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-green-50 text-sm text-green-700 font-semibold border-t-2 border-green-200 flex items-center gap-2"
+                          >
+                            <Icon name="AddOutline" size="sm" color="#16a34a" />
+                            Agregar: "{formData.restriccion}"
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Serial</label>
+                  <input
+                    type="text"
+                    name="serial"
+                    value={formData.serial}
+                    onChange={handleChange}
+                    placeholder="Serial del dispositivo"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Fila 3 - Marca y Modelo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Marca</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="marca"
+                      value={formData.marca}
+                      onChange={handleChange}
+                      onFocus={() => setShowMarcasDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowMarcasDropdown(false), 200)}
+                      placeholder="Escribir o seleccionar..."
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                      required
+                    />
+                    
+                    {showMarcasDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        {marcas
+                          .filter(m => m.toLowerCase().includes(formData.marca.toLowerCase()))
+                          .map(m => (
+                            <div
+                              key={m}
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, marca: m }));
+                                  setShowMarcasDropdown(false);
+                                }}
+                                className="flex-1 text-left"
+                              >
+                                {m}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMarcas(prev => prev.filter(x => x !== m));
+                                  if (formData.marca === m) {
+                                    setFormData(prev => ({ ...prev, marca: '' }));
+                                  }
+                                }}
+                                className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded text-red-600 transition-all"
+                                title="Eliminar"
+                              >
+                                <Icon name="TrashOutline" size="sm" color="#dc2626" />
+                              </button>
+                            </div>
+                          ))}
+                        
+                        {formData.marca && !marcas.map(m => m.toLowerCase()).includes(formData.marca.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nueva = formData.marca.charAt(0).toUpperCase() + formData.marca.slice(1);
+                              setMarcas(prev => [...new Set([...prev, nueva])]);
+                              setFormData(prev => ({ ...prev, marca: nueva }));
+                              setShowMarcasDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-green-50 text-sm text-green-700 font-semibold border-t-2 border-green-200 flex items-center gap-2"
+                          >
+                            <Icon name="AddOutline" size="sm" color="#16a34a" />
+                            Agregar marca: "{formData.marca}"
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Modelo</label>
+                  <input
+                    type="text"
+                    name="modelo"
+                    value={formData.modelo}
+                    onChange={handleChange}
+                    placeholder="iPhone 14 Pro"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Fila 4 - IMEI y Número */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">IMEI</label>
+                  <input
+                    type="text"
+                    name="imei"
+                    value={formData.imei}
+                    onChange={handleChange}
+                    placeholder="359620098765432"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Celular</label>
+                  <input
+                    type="tel"
+                    name="numero"
+                    value={formData.numero}
+                    onChange={handleChange}
+                    placeholder="+57 3XX XXX XXXX"
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Fila 5 - Plan y Fecha de Entrega */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Plan</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      name="plan"
+                      value={formData.plan}
+                      onChange={handleChange}
+                      onFocus={() => setShowPlanesDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPlanesDropdown(false), 200)}
+                      placeholder="Escribir o seleccionar..."
+                      className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                      required
+                    />
+                    
+                    {showPlanesDropdown && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
+                        {planes
+                          .filter(p => p.toLowerCase().includes(formData.plan.toLowerCase()))
+                          .map(p => (
+                            <div
+                              key={p}
+                              className="flex items-center justify-between px-4 py-2 hover:bg-green-50 text-sm text-gray-700 border-b border-gray-200 last:border-b-0 group"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, plan: p }));
+                                  setShowPlanesDropdown(false);
+                                }}
+                                className="flex-1 text-left"
+                              >
+                                {p}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPlanes(prev => prev.filter(x => x !== p));
+                                  if (formData.plan === p) {
+                                    setFormData(prev => ({ ...prev, plan: '' }));
+                                  }
+                                }}
+                                className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded text-red-600 transition-all"
+                                title="Eliminar"
+                              >
+                                <Icon name="TrashOutline" size="sm" color="#dc2626" />
+                              </button>
+                            </div>
+                          ))}
+                        
+                        {formData.plan && !planes.map(p => p.toLowerCase()).includes(formData.plan.toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nueva = formData.plan.charAt(0).toUpperCase() + formData.plan.slice(1);
+                              setPlanes(prev => [...new Set([...prev, nueva])]);
+                              setFormData(prev => ({ ...prev, plan: nueva }));
+                              setShowPlanesDropdown(false);
+                            }}
+                            className="w-full text-left px-4 py-2 hover:bg-green-50 text-sm text-green-700 font-semibold border-t-2 border-green-200 flex items-center gap-2"
+                          >
+                            <Icon name="AddOutline" size="sm" color="#16a34a" />
+                            Agregar plan: "{formData.plan}"
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Entrega</label>
+                  <input
+                    type="date"
+                    name="fechaEntrega"
+                    value={formData.fechaEntrega}
+                    onChange={handleChange}
+                    className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Guardando...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="CheckmarkOutline" size="sm" color="white" />
+                      {editingId ? 'Actualizar' : 'Registrar'}
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelar}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          // Vista normal con lista de celulares
+          <div className="card-saas-lg bg-white border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Celulares Registrados</h2>
+                <p className="text-sm text-gray-500 mt-1">{celularesFiltrados.length} de {celulares.length} dispositivo{celulares.length !== 1 ? 's' : ''}</p>
+              </div>
+              <button
+                onClick={handleExportarExcel}
+                className="btn-primary flex items-center justify-center gap-2"
+                disabled={celularesFiltrados.length === 0}
+              >
+                <Icon name="DownloadOutline" size="sm" color="white" />
+                Exportar a Excel
+              </button>
+            </div>
+
+            {/* Sección de filtros */}
+            <SearchView value={filtros.serial} onChange={(value) => setFiltros((current) => ({ ...current, serial: value }))} placeholder="Buscar por serial..." resultCount={celularesFiltrados.length} chips={Object.entries(filtros).filter(([key, value]) => key !== 'serial' && value).map(([key, value]) => ({ key, label: `${key.charAt(0).toUpperCase() + key.slice(1)}: ${value}` }))} onClear={handleLimpiarFiltros} onRemoveChip={(key) => setFiltros((current) => ({ ...current, [key]: '' }))}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Condición</label>
+                  <select
+                    name="condicion"
+                    value={filtros.condicion}
+                    onChange={handleFiltroChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Todas</option>
+                    {getCondicionesUnicas().map(cond => (
+                      <option key={cond} value={cond}>{cond}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Restricción</label>
+                  <select
+                    name="restriccion"
+                    value={filtros.restriccion}
+                    onChange={handleFiltroChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Todas</option>
+                    {getRestriccionesUnicas().map(rest => (
+                      <option key={rest} value={rest}>{rest}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Serial</label>
+                  <input
+                    type="text"
+                    name="serial"
+                    value={filtros.serial}
+                    onChange={handleFiltroChange}
+                    placeholder="Buscar..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Marca</label>
+                  <select
+                    name="marca"
+                    value={filtros.marca}
+                    onChange={handleFiltroChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    <option value="">Todas</option>
+                    {getMarcasUnicas().map(marca => (
+                      <option key={marca} value={marca}>{marca}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Modelo</label>
+                  <input
+                    type="text"
+                    name="modelo"
+                    value={filtros.modelo}
+                    onChange={handleFiltroChange}
+                    placeholder="Buscar..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">IMEI</label>
+                  <input
+                    type="text"
+                    name="imei"
+                    value={filtros.imei}
+                    onChange={handleFiltroChange}
+                    placeholder="Buscar..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">Número</label>
+                  <input
+                    type="text"
+                    name="numero"
+                    value={filtros.numero}
+                    onChange={handleFiltroChange}
+                    placeholder="Buscar..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+              <button
+                onClick={handleLimpiarFiltros}
+                className="text-sm text-gray-600 hover:text-white font-medium flex items-center gap-1 transition-colors"
+              >
+                <Icon name="CloseOutline" size="sm" color="#6b7280" />
+                Limpiar filtros
+              </button>
+            </SearchView>
+
+            {loading && (
+              <div className="p-12 text-center">
+                <div className="inline-block">
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-green-200 border-t-green-600"></div>
+                </div>
+                <p className="text-gray-600 mt-3">Cargando celulares...</p>
+              </div>
+            )}
+
+            {celularesFiltrados.length === 0 && !loading && (
+              <div className="p-12 text-center">
+                <div className="mb-4 flex justify-center">
+                  <Icon name="PhonePortraitOutline" size="xl" color="#9ca3af" />
+                </div>
+                <p className="text-gray-600 font-semibold">No hay celulares que coincidan con los filtros</p>
+                <p className="text-sm text-gray-600 mt-1">Intenta ajustar tus filtros de búsqueda</p>
+              </div>
+            )}
+
+            {celularesFiltrados.length > 0 && (
+              <div>
+                {selectedId && (() => { const selected = celulares.find((item) => item.id === selectedId); return selected ? <div className="sticky top-20 z-20 mb-4 flex flex-col gap-3 rounded-2xl border border-[#d9bdcf] bg-[#F5EFF3] p-3 shadow-md sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-[#714B67] text-sm font-bold text-white">1</span><div><p className="text-sm font-semibold text-slate-900">Celular seleccionado</p><p className="text-xs text-slate-500">{selected.marca} {selected.modelo} · {selected.serial}</p></div></div><div className="flex gap-2"><button onClick={() => handleEditar(selected)} className="btn-outline flex items-center gap-2 text-sm"><Icon name="PencilOutline" size="sm" color="#714B67" /> Editar</button><button onClick={() => handleDelete(selected.id)} className="flex min-h-11 items-center gap-2 rounded-xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700"><Icon name="TrashOutline" size="sm" color="#be123c" /> Eliminar</button><button onClick={() => setSelectedId(null)} className="h-11 w-11 rounded-xl" aria-label="Cancelar selección"><Icon name="CloseOutline" size="sm" color="#64748b" /></button></div></div> : null; })()}
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="w-12 p-4"><span className="sr-only">Seleccionar</span></th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Tipo Equipo</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Condición</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Restricción</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Serial</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Marca</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Modelo</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">IMEI</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Número</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Plan</th>
+                      <th className="text-left p-4 font-semibold text-gray-700">Fecha Entrega</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {celularesFiltrados.map(celular => (
+                      <tr key={celular.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                        <td className="p-4 text-center"><input type="checkbox" checked={selectedId === celular.id} onChange={() => setSelectedId(selectedId === celular.id ? null : celular.id)} aria-label={`Seleccionar ${celular.serial}`} /></td>
+                        <td className="p-4">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                            celular.tipoEquipo === 'FLOTA' 
+                              ? 'bg-blue-100 text-blue-700' 
+                              : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            {celular.tipoEquipo}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                            celular.condicion === 'Nuevo' 
+                              ? 'bg-green-100 text-green-700' 
+                              : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {celular.condicion}
+                          </span>
+                        </td>
+                        <td className="p-4 text-gray-600">{celular.restriccion || 'N/A'}</td>
+                        <td className="p-4 font-mono text-xs text-gray-900">{celular.serial}</td>
+                        <td className="p-4 text-gray-600">{celular.marca}</td>
+                        <td className="p-4 text-gray-600">{celular.modelo}</td>
+                        <td className="p-4 font-mono text-xs text-gray-600">{celular.imei}</td>
+                        <td className="p-4 text-gray-600">{celular.numero}</td>
+                        <td className="p-4 text-gray-600 text-sm">{celular.plan}</td>
+                        <td className="p-4 text-gray-600 text-sm">{celular.fechaEntrega}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Celular"
+          message="¿Estás seguro de que deseas eliminar este celular? Esta acción no se puede deshacer."
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+

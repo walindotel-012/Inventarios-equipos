@@ -1,0 +1,10 @@
+Dell	Latitude 5550	D6TK374	512 GB	16GB	Intel® Core™ Ultra 5 125U 1.30 GHZ	Windows 11 Pro
+Dell	Latitude 5550	D6TK375	512 GB	16GB	Intel® Core™ Ultra 5 125U 1.30 GHZ	Windows 11 Pro
+Dell	Latitude 5550	D6TK376	512 GB	16GB	Intel® Core™ Ultra 5 125U 1.30 GHZ	Windows 11 Pro
+Dell	Latitude 5550	D6TK377	512 GB	16GB	Intel® Core™ Ultra 5 125U 1.30 GHZ	Windows 11 Pro
+Dell	Latitude 5550	D6TK378	512 GB	16GB	Intel® Core™ Ultra 5 125U 1.30 GHZ	Windows 11 Pro
+HP	EliteBook 850 G10	HW2024001	512 GB	16GB	Intel® Core™ i7-1365U	Windows 11 Pro
+HP	EliteBook 850 G10	HW2024002	512 GB	16GB	Intel® Core™ i7-1365U	Windows 11 Pro
+HP	EliteBook 850 G10	HW2024003	512 GB	16GB	Intel® Core™ i7-1365U	Windows 11 Pro
+Lenovo	ThinkPad X1	LN2024001	512 GB	16GB	Intel® Core™ i7-1370P	Windows 11 Pro
+Lenovo	ThinkPad X1	LN2024002	512 GB	16GB	Intel® Core™ i7-1370P	Windows 11 Pro

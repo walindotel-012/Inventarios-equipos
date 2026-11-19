@@ -1,0 +1,723 @@
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../contexts/AuthContext';
+import { logAudit } from '../utils/auditLog';
+import Icon from '../components/Icon';
+import Toast from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToastManager } from '../hooks/useToastManager';
+
+const MODULOS_DISPONIBLES = [
+  { id: 'equipos', nombre: 'Equipos', icon: 'LaptopOutline' },
+  { id: 'celulares', nombre: 'Celulares', icon: 'PhonePortraitOutline' },
+  { id: 'nomenclaturas', nombre: 'Nomenclaturas', icon: 'PeopleOutline' },
+  { id: 'asignacion', nombre: 'Asignaciones', icon: 'LinkOutline' },
+  { id: 'equipos-disponibles', nombre: 'Equipos Disponibles', icon: 'CheckmarkCircleOutline' },
+  { id: 'hoja-entrega', nombre: 'Hojas de Entrega', icon: 'DocumentOutline' },
+  { id: 'descargo', nombre: 'Descargos', icon: 'TrashOutline' },
+];
+
+export default function AdminPermisos() {
+  const { currentUser, userPermissions } = useAuth();
+  const { toast, showToast, hideToast } = useToastManager();
+  const [usuarios, setUsuarios] = useState([]);
+  const [permisos, setPermisos] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserNombre, setNewUserNombre] = useState('');
+  const [newUserDepartamento, setNewUserDepartamento] = useState('');
+  const [showClearDatabaseConfirm, setShowClearDatabaseConfirm] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
+
+  // Verificar si el usuario es admin
+  const isAdmin = userPermissions?.isAdmin || currentUser?.email === 'walindotel@gmail.com';
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadUsuarios();
+    }
+  }, [isAdmin]);
+
+  const loadUsuarios = async () => {
+    try {
+      setLoading(true);
+      // Cargar permisos existentes
+      const permisosSnapshot = await getDocs(collection(db, 'permisos'));
+      const permisosData = {};
+      const usuariosSet = new Set();
+
+      permisosSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        permisosData[doc.id] = data;
+        
+        // Solo incluir usuarios activos (no revocados)
+        if (data.email && data.estado !== 'revocado') {
+          usuariosSet.add({
+            id: doc.id,
+            email: data.email,
+            nombre: data.nombre || data.email,
+          });
+        }
+      });
+
+      setPermisos(permisosData);
+      setUsuarios(Array.from(usuariosSet));
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+      showToast('Error al cargar usuarios', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleModulo = (userId, moduloId) => {
+    const userPerms = permisos[userId] || { userId, rol: 'usuario', isAdmin: false, modulos: [] };
+    const modulosActuales = userPerms.modulos || [];
+    const nuevoModulos = modulosActuales.includes(moduloId)
+      ? modulosActuales.filter(m => m !== moduloId)
+      : [...modulosActuales, moduloId];
+
+    setPermisos(prev => ({
+      ...prev,
+      [userId]: {
+        ...userPerms,
+        modulos: nuevoModulos
+      }
+    }));
+  };
+
+  const handleToggleAdmin = (userId) => {
+    const userPerms = permisos[userId] || { userId, rol: 'usuario', isAdmin: false, modulos: [] };
+    setPermisos(prev => ({
+      ...prev,
+      [userId]: {
+        ...userPerms,
+        isAdmin: !userPerms.isAdmin,
+        rol: userPerms.isAdmin ? 'usuario' : 'admin',
+        modulos: !userPerms.isAdmin ? [] : userPerms.modulos // Los admins no necesitan módulos específicos
+      }
+    }));
+  };
+
+  const handleGuardarPermisos = async (userId) => {
+    try {
+      setLoading(true);
+      const userPerms = permisos[userId];
+      
+      // Validar que el email no esté vacío
+      if (!userPerms.email || !userPerms.email.trim()) {
+        showToast('El correo electrónico es requerido', 'error');
+        setLoading(false);
+        return;
+      }
+
+      const permDoc = doc(db, 'permisos', userId);
+
+      await setDoc(permDoc, {
+        userId,
+        ...userPerms,
+        actualizadoEn: new Date().toISOString(),
+        actualizadoPor: currentUser.uid
+      });
+
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'UPDATE',
+        'Admin de Permisos',
+        userId,
+        { permisos: userPerms }
+      );
+
+      // Actualizar la lista de usuarios con los nuevos datos
+      setUsuarios(prev => prev.map(u => 
+        u.id === userId 
+          ? { ...u, email: userPerms.email, nombre: userPerms.nombre }
+          : u
+      ));
+
+      showToast('Permisos guardados exitosamente', 'success');
+      setEditingUserId(null);
+    } catch (error) {
+      console.error('Error guardando permisos:', error);
+      showToast('Error al guardar permisos', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEliminarUsuario = async () => {
+    try {
+      if (!deleteUserId) {
+        console.error('deleteUserId no está definido');
+        showToast('Error: No hay usuario seleccionado para eliminar', 'error');
+        return;
+      }
+
+      setLoading(true);
+      
+      // Obtener datos del usuario antes de revocar permisos
+      const usuarioData = permisos[deleteUserId];
+      const userEmail = usuarioData?.email || 'desconocido';
+      
+      // Revocar permisos: actualizar el documento con permisos vacíos y estado revocado
+      // En lugar de eliminar el documento, lo actualizamos para marcar el usuario como revocado
+      const permisoRevocado = {
+        userId: deleteUserId,
+        email: usuarioData?.email || '',
+        nombre: usuarioData?.nombre || usuarioData?.email || '',
+        rol: 'usuario',
+        isAdmin: false,
+        modulos: [], // Sin acceso a ningún módulo
+        estado: 'revocado',
+        fechaRevocacion: new Date().toISOString(),
+        revocadoPor: currentUser.uid,
+        revocadoPorEmail: currentUser.email
+      };
+      
+      // Actualizar documento de permisos con estado revocado
+      await updateDoc(doc(db, 'permisos', deleteUserId), permisoRevocado);
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'UPDATE',
+        'Admin de Permisos',
+        deleteUserId,
+        { permisoRevocado }
+      );
+      
+      // Actualizar estado de permisos local
+      setPermisos(prev => ({
+        ...prev,
+        [deleteUserId]: permisoRevocado
+      }));
+      
+      // Actualizar lista de usuarios (remover de la lista visible)
+      setUsuarios(prev => prev.filter(u => u.id !== deleteUserId));
+      
+      showToast(`Permisos revocados para: ${userEmail}`, 'success');
+      setShowDeleteConfirm(false);
+      setDeleteUserId(null);
+    } catch (error) {
+      console.error('Error revocando permisos del usuario:', error);
+      showToast(`Error al revocar permisos: ${error.message}`, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAgregarUsuario = async () => {
+    if (!newUserEmail.trim()) {
+      showToast('El correo electrónico es requerido', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const userId = newUserEmail.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      const newUserData = {
+        userId,
+        email: newUserEmail.toLowerCase(),
+        nombre: newUserNombre || newUserEmail,
+        departamento: newUserDepartamento,
+        rol: 'usuario',
+        isAdmin: false,
+        modulos: [],
+        creadoEn: new Date().toISOString(),
+        creadoPor: currentUser.uid
+      };
+
+      await setDoc(doc(db, 'permisos', userId), newUserData);
+      await logAudit(
+        currentUser.uid,
+        currentUser.displayName || currentUser.email,
+        'CREATE',
+        'Admin de Permisos',
+        userId,
+        { email: newUserData.email, nombre: newUserData.nombre, departamento: newUserData.departamento }
+      );
+      
+      // Actualizar estado local
+      setPermisos(prev => ({
+        ...prev,
+        [userId]: newUserData
+      }));
+
+      setUsuarios(prev => [...prev, {
+        id: userId,
+        email: newUserData.email,
+        nombre: newUserData.nombre
+      }]);
+
+      setNewUserEmail('');
+      setNewUserNombre('');
+      setNewUserDepartamento('');
+      setShowAddUser(false);
+      showToast('Usuario agregado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error agregando usuario:', error);
+      showToast('Error al agregar usuario', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearAllDatabase = async () => {
+    try {
+      setIsClearing(true);
+      const collections = ['equipos', 'celulares', 'nomenclaturas', 'asignaciones', 'entregas', 'descargos', 'bitacora'];
+      
+      for (const collectionName of collections) {
+        const querySnapshot = await getDocs(collection(db, collectionName));
+        for (const document of querySnapshot.docs) {
+          await deleteDoc(document.ref);
+        }
+      }
+      
+      setShowClearDatabaseConfirm(false);
+      showToast('✓ Base de datos limpiada exitosamente', 'success');
+    } catch (error) {
+      console.error('Error al limpiar base de datos:', error);
+      showToast('✗ Error al limpiar la base de datos: ' + error.message, 'error');
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Icon name="LockClosedOutline" size="lg" color="#dc2626" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Acceso Denegado</h1>
+          <p className="text-gray-600">Solo los administradores pueden acceder a esta sección.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const usuariosFiltrados = usuarios.filter(u =>
+    u.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-4xl font-bold text-gray-900 font-manrope">Gestión de Permisos</h1>
+            <button
+              onClick={() => setShowAddUser(true)}
+              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-md"
+            >
+              <Icon name="AddOutline" size="md" color="white" />
+              Agregar Usuario
+            </button>
+          </div>
+          <p className="text-gray-600">Administra los permisos y módulos accesibles para cada usuario</p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <Icon name="SearchOutline" size="md" color="#6b7280" className="absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar por nombre o correo..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* Usuarios Grid */}
+        {loading && !editingUserId ? (
+          <div className="text-center py-12">
+            <p className="text-gray-600">Cargando...</p>
+          </div>
+        ) : usuariosFiltrados.length === 0 ? (
+          <div className="text-center py-12">
+            <Icon name="PeopleOutline" size="lg" color="#d1d5db" className="mx-auto mb-4" />
+            <p className="text-gray-600">No hay usuarios con esos criterios</p>
+          </div>
+        ) : (
+          <div className="grid gap-6">
+            {usuariosFiltrados.map(usuario => {
+              const userPerms = permisos[usuario.id] || { userId: usuario.id, rol: 'usuario', isAdmin: false, modulos: [] };
+              const isEditing = editingUserId === usuario.id;
+
+              return (
+                <div
+                  key={usuario.id}
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all"
+                >
+                  {/* Usuario Header */}
+                  <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                    {isEditing ? (
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Correo Electrónico
+                          </label>
+                          <input
+                            type="email"
+                            value={userPerms.email || ''}
+                            onChange={(e) => setPermisos(prev => ({
+                              ...prev,
+                              [usuario.id]: { ...userPerms, email: e.target.value }
+                            }))}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Nombre Completo
+                          </label>
+                          <input
+                            type="text"
+                            value={userPerms.nombre || ''}
+                            onChange={(e) => setPermisos(prev => ({
+                              ...prev,
+                              [usuario.id]: { ...userPerms, nombre: e.target.value }
+                            }))}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-900 mb-2">
+                            Departamento
+                          </label>
+                          <input
+                            type="text"
+                            value={userPerms.departamento || ''}
+                            onChange={(e) => setPermisos(prev => ({
+                              ...prev,
+                              [usuario.id]: { ...userPerms, departamento: e.target.value }
+                            }))}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 focus:border-blue-500 focus:outline-none shadow-sm"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                              <Icon name="PersonOutline" size="md" color="white" />
+                            </div>
+                            {usuario.nombre}
+                          </h3>
+                          <p className="text-gray-600 text-sm mt-1">{usuario.email}</p>
+                          {userPerms.departamento && (
+                            <p className="text-gray-700 text-sm mt-1">
+                              <span className="font-semibold">Departamento:</span> {userPerms.departamento}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {userPerms.isAdmin && (
+                            <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">
+                              Admin
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Rol y Permisos */}
+                  <div className="p-6">
+                    {/* Toggle Admin */}
+                    <div className="mb-6">
+                      <label className="flex items-center gap-3 p-4 bg-gradient-to-r from-red-50 to-orange-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={userPerms.isAdmin}
+                          onChange={() => handleToggleAdmin(usuario.id)}
+                          disabled={!isEditing}
+                          className="w-5 h-5 text-red-600 rounded"
+                        />
+                        <div>
+                          <p className="font-semibold text-gray-900">Administrador</p>
+                          <p className="text-sm text-gray-600">Acceso a todas las funciones y gestión de permisos</p>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Módulos */}
+                    {!userPerms.isAdmin && (
+                      <div>
+                        <p className="font-semibold text-gray-900 mb-4">Módulos Permitidos</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {MODULOS_DISPONIBLES.map(modulo => (
+                            <label
+                              key={modulo.id}
+                              className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
+                                userPerms.modulos.includes(modulo.id)
+                                  ? 'bg-blue-50 border-blue-300'
+                                  : 'bg-gray-50 border-gray-200'
+                              } ${isEditing ? 'cursor-pointer hover:border-blue-400 hover:bg-blue-100' : 'cursor-not-allowed opacity-60'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={userPerms.modulos.includes(modulo.id)}
+                                onChange={() => handleToggleModulo(usuario.id, modulo.id)}
+                                disabled={!isEditing}
+                                className="w-5 h-5 text-blue-600 rounded"
+                              />
+                              <div className="flex items-center gap-2">
+                                <Icon name={modulo.icon} size="sm" color={userPerms.modulos.includes(modulo.id) ? '#2563eb' : '#9ca3af'} />
+                                <span className="font-medium text-gray-900">{modulo.nombre}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Acciones */}
+                  <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
+                    {isEditing ? (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingUserId(null);
+                            loadUsuarios(); // Recargar para descartar cambios
+                          }}
+                          className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => handleGuardarPermisos(usuario.id)}
+                          disabled={loading}
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+                        >
+                          <Icon name="CheckmarkOutline" size="sm" color="white" />
+                          {loading ? 'Guardando...' : 'Guardar'}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setEditingUserId(usuario.id)}
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+                        >
+                          <Icon name="CreateOutline" size="sm" color="white" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteUserId(usuario.id);
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+                        >
+                          <Icon name="TrashOutline" size="sm" color="white" />
+                          Eliminar
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Delete Confirmation */}
+      {showDeleteConfirm && (
+        <ConfirmDialog
+          title="Eliminar Usuario"
+          message="¿Está seguro de que desea eliminar los permisos de este usuario? No podrá acceder a ningún módulo."
+          onConfirm={handleEliminarUsuario}
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setDeleteUserId(null);
+          }}
+          confirmText="Eliminar"
+          cancelText="Cancelar"
+          isDangerous={true}
+        />
+      )}
+
+      {/* Add User Modal */}
+      {showAddUser && createPortal(
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
+            onClick={() => setShowAddUser(false)}
+          />
+
+          {/* Modal */}
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full animate-in scale-95 border border-gray-200">
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200 flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50">
+                <h2 className="text-2xl font-bold text-gray-900">Agregar Nuevo Usuario</h2>
+                <button
+                  onClick={() => setShowAddUser(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Icon name="CloseOutline" size="md" color="#6b7280" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Correo Electrónico
+                  </label>
+                  <input
+                    type="email"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                    placeholder="usuario@ejemplo.com"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Nombre (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserNombre}
+                    onChange={(e) => setNewUserNombre(e.target.value)}
+                    placeholder="Nombre completo"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Departamento (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={newUserDepartamento}
+                    onChange={(e) => setNewUserDepartamento(e.target.value)}
+                    placeholder="Ej: Ventas, IT, RRHH"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-blue-500 focus:outline-none shadow-sm"
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-6 bg-gray-50 border-t border-gray-200 flex justify-end gap-3 rounded-b-2xl">
+                <button
+                  onClick={() => setShowAddUser(false)}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleAgregarUsuario}
+                  disabled={loading || !newUserEmail.trim()}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-md"
+                >
+                  <Icon name="CheckmarkOutline" size="sm" color="white" />
+                  {loading ? 'Agregando...' : 'Agregar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      , document.getElementById('portal') || document.body
+      )}
+
+      {/* 
+      {/* Danger Zone - Limpiar Base de Datos */}
+      {/*<div className="mt-12 pt-8 border-t-2 border-slate-700">
+        <h2 className="text-lg font-bold text-white font-manrope mb-4">Zona de Peligro</h2>
+        <div className="card-saas bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 p-6">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-red-900 font-manrope mb-2 flex items-center gap-2">
+                <Icon name="TrashOutline" size="md" color="#991b1b" />
+                Limpiar Base de Datos
+              </h3>
+              <p className="text-red-700 text-sm mb-4">Elimina todos los registros del sistema incluyendo equipos, celulares, asignaciones y más. <span className="font-semibold">Esta acción no se puede deshacer.</span></p>
+            </div>
+            <button
+              onClick={() => setShowClearDatabaseConfirm(true)}
+              disabled={isClearing}
+              className="px-6 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 flex-shrink-0"
+            >
+              <Icon name="TrashOutline" size="sm" color="white" />
+              {isClearing ? 'Limpiando...' : 'Limpiar Todo'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Clear Database Confirmation Modal */}
+      {/*{showClearDatabaseConfirm && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                <Icon name="AlertCircleOutline" size="md" color="#991b1b" />
+              </div>
+              <h2 className="text-xl font-bold text-white">⚠️ Confirmar eliminación</h2>
+            </div>
+            
+            <p className="text-slate-300 text-sm mb-2">Esta acción eliminará <span className="font-semibold">TODOS</span> los registros de:</p>
+            <ul className="text-slate-400 text-sm space-y-1 mb-6 pl-4">
+              <li>• Equipos</li>
+              <li>• Celulares</li>
+              <li>• Nomenclaturas</li>
+              <li>• Asignaciones</li>
+              <li>• Entregas</li>
+              <li>• Descargos</li>
+              <li>• Bitácora</li>
+            </ul>
+
+            <p className="text-red-700 font-semibold text-sm mb-6">⚠️ Esta acción NO se puede deshacer. Asegúrate de tener un respaldo.</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearDatabaseConfirm(false)}
+                disabled={isClearing}
+                className="flex-1 px-4 py-2 border-2 border-slate-600 text-slate-300 font-semibold rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={clearAllDatabase}
+                disabled={isClearing}
+                className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white font-semibold rounded-lg transition-colors"
+              >
+                {isClearing ? 'Limpiando...' : 'Eliminar Todo'}
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.getElementById('portal') || document.body
+      )}
+      */}
+
+      {/* Toast */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={hideToast} />}
+    </div>
+  );
+}
+

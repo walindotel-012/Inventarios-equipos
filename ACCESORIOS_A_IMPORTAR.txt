@@ -1,0 +1,10 @@
+Cable HDMI	Nuevo	HDMI	2.1	HDMI-001
+Mouse Inalámbrico	Nuevo	Logitech	MX Master 3S	LOG-MUS-001
+Teclado Mecánico	Nuevo	Corsair	K95 RGB Platinum	COR-KEY-001
+Monitor USB-C	Usado	Dell	U2720Q	DELL-MON-001
+Hub USB	Nuevo	Anker	PowerExpand Elite 13-in-1	ANK-HUB-001
+Cargador Rápido	Nuevo	Apple	140W USB-C	APP-CHA-001
+Adaptador HDMI	Nuevo	Belkin	AB2000200	BEL-ADP-001
+Cable Ethernet	Nuevo	Categor	CAT6 2m	CAT-ETH-001
+Soporte Laptop	Usado	Rain Design	mStand	RAI-SOP-001
+Docking Station	Nuevo	Lenovo	ThinkPad	LEN-DOC-001
